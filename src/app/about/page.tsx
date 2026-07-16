@@ -1,0 +1,1 @@
+export default function About(){return <section className="container"><span className="eyebrow">О проекте</span><h1 className="pageTitle">О компании</h1><p className="lead">Российское ООО или ИП организует продажу сертифицированной тайской косметики с прямой отправкой из Таиланда покупателям России и стран СНГ.</p></section>}

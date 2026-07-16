@@ -1,0 +1,1 @@
+export default function Delivery(){return <section className="container"><span className="eyebrow">Россия и СНГ</span><h1 className="pageTitle">Оплата и доставка</h1><p className="lead">Планируемые способы оплаты: банковские карты РФ, СБП и разрешенные законом криптовалютные сценарии. Доставка — напрямую из Таиланда с интеграцией СДЭК и отслеживанием отправления.</p></section>}

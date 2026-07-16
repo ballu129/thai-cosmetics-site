@@ -1,0 +1,4 @@
+import { notFound } from 'next/navigation';
+import { products } from '@/data/products';
+export function generateStaticParams(){return products.map(p=>({slug:p.slug}))}
+export default async function ProductPage({params}:{params:Promise<{slug:string}>}){const {slug}=await params;const product=products.find(p=>p.slug===slug);if(!product)notFound();return <section className="container"><span className="eyebrow">{product.brand} · {product.category}</span><h1 className="pageTitle">{product.name}</h1><p className="lead">{product.description}</p><h2>{product.price.toLocaleString('ru-RU')} ₽</h2><p><strong>Статус:</strong> В наличии</p><h2>Активные компоненты</h2><ul>{product.activeIngredients.map(i=><li key={i}>{i}</li>)}</ul><h2>Документы и безопасность</h2><p>Перед продажей карточка товара должна быть дополнена составом INCI, способом применения, мерами предосторожности, сроком годности и данными сертификата.</p></section>}

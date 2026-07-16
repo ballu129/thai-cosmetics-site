@@ -1,0 +1,1 @@
+export default function Contacts(){return <section className="container"><span className="eyebrow">Поддержка</span><h1 className="pageTitle">Контакты</h1><p className="lead">Здесь будут размещены реквизиты продавца, адрес для обращений, телефоны, мессенджеры и форма обратной связи.</p></section>}

@@ -1,0 +1,1 @@
+export default function EnglishHome(){return <section className="container"><span className="eyebrow">Original Thai cosmetics</span><h1 className="pageTitle">Thai beauty and special care products</h1><p className="lead">A multilingual storefront prepared for certified Thai cosmetics with direct delivery to Russia and CIS countries.</p></section>}

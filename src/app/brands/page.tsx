@@ -1,0 +1,1 @@
+export default function Brands(){return <section className="container"><span className="eyebrow">Производители</span><h1 className="pageTitle">Бренды тайской косметики</h1><p className="lead">Страница подготовлена для каталога брендов, брендовых SEO-страниц, сертификатов и истории производителей.</p></section>}
