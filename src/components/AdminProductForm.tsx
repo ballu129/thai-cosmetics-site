@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type ProductData = {
@@ -11,6 +11,12 @@ type ProductData = {
   description: string;
   healing: boolean;
   imageUrl: string;
+};
+
+type UploadResponse = {
+  success?: boolean;
+  imageUrl?: string;
+  error?: string;
 };
 
 export default function AdminProductForm({
@@ -25,10 +31,54 @@ export default function AdminProductForm({
   const [price, setPrice] = useState(String(product.price));
   const [description, setDescription] = useState(product.description);
   const [healing, setHealing] = useState(product.healing);
-  const [imageUrl, setImageUrl] = useState(product.imageUrl);
+  const [imageUrl, setImageUrl] = useState(product.imageUrl ?? "");
 
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  async function handleImageUpload(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Можно загружать только изображения.");
+      event.target.value = "";
+      return;
+    }
+
+    setUploading(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = (await response.json()) as UploadResponse;
+
+      if (!response.ok || !data.imageUrl) {
+        setError(data.error ?? "Не удалось загрузить изображение.");
+        return;
+      }
+
+      setImageUrl(data.imageUrl);
+    } catch {
+      setError("Не удалось загрузить изображение.");
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -126,6 +176,24 @@ export default function AdminProductForm({
       </label>
 
       <label>
+        Выбрать новое изображение
+        <input
+          type="file"
+          accept="image/*"
+          disabled={uploading || saving}
+          onChange={handleImageUpload}
+          style={{
+            display: "block",
+            width: "100%",
+            marginTop: 8,
+            padding: 10,
+          }}
+        />
+      </label>
+
+      {uploading && <p style={{ margin: 0 }}>Загрузка изображения...</p>}
+
+      <label>
         Путь к изображению
         <input
           type="text"
@@ -134,6 +202,26 @@ export default function AdminProductForm({
           style={{ width: "100%", padding: 10 }}
         />
       </label>
+
+      {imageUrl && (
+        <div>
+          <p style={{ marginTop: 0 }}>Предпросмотр</p>
+          <img
+            src={imageUrl}
+            alt="Предпросмотр товара"
+            style={{
+              display: "block",
+              width: 240,
+              maxWidth: "100%",
+              height: 240,
+              objectFit: "contain",
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              background: "#fff",
+            }}
+          />
+        </div>
+      )}
 
       <label>
         <input
@@ -152,10 +240,10 @@ export default function AdminProductForm({
 
       <button
         type="submit"
-        disabled={saving}
+        disabled={saving || uploading}
         style={{
           padding: 12,
-          cursor: saving ? "default" : "pointer",
+          cursor: saving || uploading ? "default" : "pointer",
         }}
       >
         {saving ? "Сохранение..." : "Сохранить"}
