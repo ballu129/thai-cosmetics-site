@@ -1,15 +1,57 @@
-import Link from 'next/link';
-import { Product } from '@/data/products';
-import styles from './ProductCard.module.css';
+import Image from "next/image";
+import Link from "next/link";
+import styles from "./ProductCard.module.css";
 
-export default function ProductCard({product}:{product:Product}){
-  return <article className={styles.card}>
-    <div className={styles.image}>{product.healing ? 'Лечебная косметика' : 'Thai Beauty'}</div>
-    <div className={styles.body}>
-      <span>{product.brand}</span>
-      <h3>{product.name}</h3>
-      <p>{product.description}</p>
-      <div className={styles.row}><strong>{product.price.toLocaleString('ru-RU')} ₽</strong><Link href={`/product/${product.slug}`}>Подробнее</Link></div>
-    </div>
-  </article>
+type ProductCardProduct = {
+  slug: string;
+  name: string;
+  brand: string;
+  price: number;
+  description: string;
+  healing?: boolean;
+  imageUrl?: string;
+};
+
+export default function ProductCard({
+  product,
+}: {
+  product: ProductCardProduct;
+}) {
+  return (
+    <article className={styles.card}>
+      <div className={styles.image}>
+        {product.imageUrl ? (
+          <Image
+            src={product.imageUrl}
+            alt={product.name}
+            fill
+            sizes="(max-width: 768px) 100vw, 33vw"
+            style={{ objectFit: "cover" }}
+          />
+        ) : (
+          <span>
+            {product.healing ? "Healing" : "Thai Beauty"}
+          </span>
+        )}
+      </div>
+
+      <div className={styles.body}>
+        <span>{product.brand}</span>
+
+        <h3>{product.name}</h3>
+
+        <p>{product.description}</p>
+
+        <div className={styles.row}>
+          <strong>
+            {product.price.toLocaleString("ru-RU")} {"฿"}
+          </strong>
+
+          <Link href={`/product/${product.slug}`}>
+            {"Details"}
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
 }

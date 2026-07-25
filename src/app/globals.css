@@ -1,1 +1,105 @@
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#fbfaf7;color:#1f2924;font-family:Arial,Helvetica,sans-serif}a{color:inherit}main{min-height:70vh}.container{max-width:1180px;margin:auto;padding:64px 20px}.eyebrow{text-transform:uppercase;letter-spacing:2px;color:#8b6b45;font-weight:700;font-size:13px}.title{font-size:clamp(36px,6vw,72px);line-height:1.05;margin:14px 0}.lead{font-size:19px;line-height:1.65;color:#59615c;max-width:720px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}.pageTitle{font-size:46px;margin:0 0 18px}.notice{padding:18px;border-radius:14px;background:#fff4d8;border:1px solid #ead49a;line-height:1.5}@media(max-width:850px){.grid{grid-template-columns:1fr}.container{padding-top:42px}}
+* {
+    box-sizing: border-box
+}
+
+html {
+    scroll-behavior: smooth
+}
+
+body {
+    margin: 0;
+    background: #fbfaf7;
+    color: #1f2924;
+    font-family: Arial, Helvetica, sans-serif
+}
+
+a {
+    color: inherit
+}
+
+main {
+    min-height: 70vh
+}
+
+.container {
+    max-width: 1180px;
+    margin: auto;
+    padding: 64px 20px
+}
+
+.eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #8b6b45;
+    font-weight: 700;
+    font-size: 13px
+}
+
+.title {
+    font-size: clamp(36px, 6vw, 72px);
+    line-height: 1.05;
+    margin: 14px 0
+}
+
+.lead {
+    font-size: 19px;
+    line-height: 1.65;
+    color: #59615c;
+    max-width: 720px
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px
+}
+
+.pageTitle {
+    font-size: 46px;
+    margin: 0 0 18px
+}
+
+.notice {
+    padding: 18px;
+    border-radius: 14px;
+    background: #fff4d8;
+    border: 1px solid #ead49a;
+    line-height: 1.5
+}
+
+@media(max-width:850px) {
+    .grid {
+        grid-template-columns: 1fr
+    }
+
+    .container {
+        padding-top: 42px
+    }
+}.searchForm {
+  display: flex;
+  gap: 12px;
+  margin: 24px 0 40px;
+}
+
+.searchInput {
+  flex: 1;
+  max-width: 420px;
+  padding: 14px 18px;
+  border: 1px solid #d7ddd6;
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.searchButton {
+  padding: 14px 24px;
+  border: none;
+  border-radius: 12px;
+  background: #1f5b46;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.searchButton:hover {
+  background: #184736;
+}
