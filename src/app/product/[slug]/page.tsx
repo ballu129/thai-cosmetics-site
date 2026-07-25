@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+﻿import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import ProductGallery from "@/components/ProductGallery";
 import ProductActions from "@/components/ProductActions";
@@ -28,17 +28,9 @@ export default async function ProductPage({
     notFound();
   }
 
-  const images =
-    product.slug === "herbal-balm-wang-prom"
-      ? [
-          "/products/wang-prom-1.jpg",
-          "/products/wang-prom-2.jpg",
-          "/products/wang-prom-3.jpg",
-          "/products/wang-prom-4.jpg",
-        ]
-      : product.imageUrl
-        ? [product.imageUrl]
-        : [];
+  const images = product.imageUrl
+    ? [product.imageUrl]
+    : [];
 
   return (
     <section className="container">
@@ -63,19 +55,16 @@ export default async function ProductPage({
 
           <div className={styles.ratingRow}>
             <span className={styles.rating}>
-              ⭐⭐⭐⭐⭐ 4.9 (126 отзывов)
+              ★★★★★ 4.9 (126 отзывов)
             </span>
 
             <span className={styles.stock}>
-              ✔ В наличии
+              ✓ В наличии
             </span>
           </div>
 
           <div className={styles.price}>
-            {Number(product.price).toLocaleString(
-              "ru-RU"
-            )}{" "}
-            ₽
+            {Number(product.price).toLocaleString("ru-RU")} ₽
           </div>
 
           <ProductActions
@@ -101,7 +90,7 @@ export default async function ProductPage({
 
               <div className={styles.detailItem}>
                 <span className={styles.detailLabel}>
-                  Страна
+                  Страна производства
                 </span>
 
                 <span className={styles.detailValue}>
@@ -121,11 +110,11 @@ export default async function ProductPage({
 
               <div className={styles.detailItem}>
                 <span className={styles.detailLabel}>
-                  Вес
+                  Объём
                 </span>
 
                 <span className={styles.detailValue}>
-                  50 г
+                  50 мл
                 </span>
               </div>
             </div>
@@ -133,47 +122,47 @@ export default async function ProductPage({
 
           <div className={styles.benefits}>
             <div className={styles.benefit}>
-              <strong>🇹🇭 Оригинальный товар</strong>
+              <strong>Оригинальная продукция</strong>
               <span>
-                Поставка напрямую из Таиланда.
+                Прямая поставка от проверенных поставщиков из Таиланда.
               </span>
             </div>
 
             <div className={styles.benefit}>
-              <strong>🚚 Быстрая доставка</strong>
+              <strong>Контроль качества</strong>
               <span>
-                По России и странам СНГ.
+                Проверяем товар перед отправкой покупателю.
               </span>
             </div>
 
             <div className={styles.benefit}>
-              <strong>✔ Проверенное качество</strong>
+              <strong>Безопасная оплата</strong>
               <span>
-                Только сертифицированная продукция.
+                Надёжные способы оплаты и защита заказа.
               </span>
             </div>
 
             <div className={styles.benefit}>
-              <strong>📦 В наличии</strong>
+              <strong>Доставка по России и СНГ</strong>
               <span>
-                Товар готов к отправке.
+                Отправляем заказы напрямую из Таиланда.
               </span>
             </div>
           </div>
 
-          <div className={styles.ingredients}>
-            <h2>Активные ингредиенты</h2>
+          {product.activeIngredients.length > 0 && (
+            <div className={styles.ingredients}>
+              <h2>Активные компоненты</h2>
 
-            <ul>
-              {product.activeIngredients.map(
-                (ingredient) => (
+              <ul>
+                {product.activeIngredients.map((ingredient) => (
                   <li key={ingredient}>
                     {ingredient}
                   </li>
-                )
-              )}
-            </ul>
-          </div>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </section>
