@@ -38,18 +38,18 @@ export default function ProductActions({
   return (
     <div className={styles.actions}>
       <button className={styles.buyButton}>
-        Buy now
+        Купить сейчас
       </button>
 
       <button
         className={styles.cartButton}
         onClick={handleAddToCart}
       >
-        {added ? "Added!" : "Add to cart"}
+        {added ? "Добавлено!" : "Добавить в корзину"}
       </button>
 
       <button className={styles.favoriteButton}>
-        Add to favorites
+        В избранное
       </button>
     </div>
   );

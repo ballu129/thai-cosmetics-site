@@ -1,4 +1,4 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
 import styles from "./ProductCard.module.css";
 
@@ -30,7 +30,9 @@ export default function ProductCard({
           />
         ) : (
           <span>
-            {product.healing ? "Healing" : "Thai Beauty"}
+            {product.healing
+              ? "Лечебная косметика"
+              : "Тайская косметика"}
           </span>
         )}
       </div>
@@ -44,11 +46,11 @@ export default function ProductCard({
 
         <div className={styles.row}>
           <strong>
-            {product.price.toLocaleString("ru-RU")} {"฿"}
+            {product.price.toLocaleString("ru-RU")} ₽
           </strong>
 
           <Link href={`/product/${product.slug}`}>
-            {"Details"}
+            Подробнее
           </Link>
         </div>
       </div>
