@@ -41,3 +41,12 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# ChatGPT temporary files
+.chatgpt/
+
+# Backup files
+*.bak
+
+# Local status file
+status.txt
