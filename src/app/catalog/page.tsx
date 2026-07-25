@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import ProductCard from "@/components/ProductCard";
 import { prisma } from "@/lib/prisma";
+import styles from "./Catalog.module.css";
 
 export const metadata: Metadata = {
   title: "Каталог тайской косметики",
   description:
-    "Каталог оригинальной сертифицированной косметики из Таиланда.",
+    "Каталог оригинальной тайской косметики для ухода за кожей, волосами и телом.",
 };
 
 type CatalogProps = {
@@ -68,17 +69,28 @@ export default async function Catalog({
   }));
 
   return (
-    <section className="container">
-      <span className="eyebrow">Более 2000 товаров</span>
+    <section className={styles.catalog}>
+      <div className={styles.heading}>
+        <span className={styles.eyebrow}>
+          Более 2000 товаров
+        </span>
 
-      <h1 className="pageTitle">Каталог тайской косметики</h1>
+        <h1 className={styles.title}>
+          Каталог тайской косметики
+        </h1>
 
-      <p className="lead">
-        Поиск по названию товара, бренду и категории.
-      </p>
+        <p className={styles.description}>
+          Поиск по названию товара, бренду и категории.
+        </p>
+      </div>
 
-      <form action="/catalog" method="get">
+      <form
+        action="/catalog"
+        method="get"
+        className={styles.searchForm}
+      >
         <input
+          className={styles.searchInput}
           type="search"
           name="search"
           defaultValue={query}
@@ -86,11 +98,22 @@ export default async function Catalog({
           aria-label="Поиск товаров"
         />
 
-        <button type="submit">Найти</button>
+        <button
+          className={styles.searchButton}
+          type="submit"
+        >
+          Найти
+        </button>
       </form>
 
+      {query && (
+        <div className={styles.searchResult}>
+          Результаты поиска по запросу: <strong>«{query}»</strong>
+        </div>
+      )}
+
       {products.length > 0 ? (
-        <div className="grid">
+        <div className={styles.grid}>
           {products.map((product) => (
             <ProductCard
               key={product.slug}
@@ -99,9 +122,16 @@ export default async function Catalog({
           ))}
         </div>
       ) : (
-        <p className="lead">
-          По вашему запросу товары не найдены.
-        </p>
+        <div className={styles.empty}>
+          <h2>Товары не найдены</h2>
+          <p>
+            Попробуйте изменить запрос или очистить поле поиска.
+          </p>
+
+          <a href="/catalog">
+            Показать все товары
+          </a>
+        </div>
       )}
     </section>
   );
