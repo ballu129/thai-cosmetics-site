@@ -1,4 +1,4 @@
-.card {
+﻿.card {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -17,7 +17,7 @@
 .image {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -44,9 +44,9 @@
 }
 
 .body p {
+  margin-top: 12px;
   color: #555555;
   line-height: 1.6;
-  margin-top: 12px;
 }
 
 .row {
@@ -59,8 +59,8 @@
 }
 
 .row strong {
-  font-size: 30px;
   color: #0f3f33;
+  font-size: 30px;
 }
 
 .row a {
@@ -71,4 +71,14 @@
 
 .row a:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 680px) {
+  .image {
+    height: 240px;
+  }
+
+  .row strong {
+    font-size: 24px;
+  }
 }

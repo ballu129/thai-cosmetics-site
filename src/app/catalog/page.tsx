@@ -6,7 +6,7 @@ import styles from "./Catalog.module.css";
 export const metadata: Metadata = {
   title: "Каталог тайской косметики",
   description:
-    "Каталог оригинальной тайской косметики для ухода за кожей, волосами и телом.",
+    "Каталог оригинальной тайской косметики с поиском по названию, бренду и категории.",
 };
 
 type CatalogProps = {
@@ -60,12 +60,10 @@ export default async function Catalog({
     slug: product.slug,
     name: product.name,
     brand: product.brand.name,
-    category: product.category,
     price: Number(product.price),
     description: product.description,
-    imageUrl: product.imageUrl ?? undefined,
     healing: product.healing,
-    activeIngredients: product.activeIngredients,
+    imageUrl: product.imageUrl ?? undefined,
   }));
 
   return (
@@ -80,7 +78,7 @@ export default async function Catalog({
         </h1>
 
         <p className={styles.description}>
-          Поиск по названию товара, бренду и категории.
+          Найдите товар по названию, бренду или категории.
         </p>
       </div>
 
@@ -124,8 +122,9 @@ export default async function Catalog({
       ) : (
         <div className={styles.empty}>
           <h2>Товары не найдены</h2>
+
           <p>
-            Попробуйте изменить запрос или очистить поле поиска.
+            Измени запрос или очисти поле поиска.
           </p>
 
           <a href="/catalog">
