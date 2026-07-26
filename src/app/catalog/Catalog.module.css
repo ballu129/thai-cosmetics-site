@@ -160,4 +160,78 @@
   .grid {
     grid-template-columns: 1fr;
   }
+} 
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.count {
+  color: #555;
+  font-size: 14px;
+}
+
+.limitForm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.limitSelect {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.limitButton {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #0f766e;
+  color: #fff;
+  cursor: pointer;
+}
+
+.limitButton:hover {
+  background: #115e59;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.paginationLink {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.paginationLink:hover {
+  background: #f3f4f6;
+}
+
+.paginationLinkActive {
+  background: #0f766e;
+  color: #fff;
+  border-color: #0f766e;
+}
+
+.paginationLinkDisabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.paginationEllipsis {
+  padding: 8px;
 }
