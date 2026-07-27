@@ -1,4 +1,5 @@
 ﻿import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
 type OrderItemRequest = {
@@ -148,6 +149,12 @@ export async function POST(request: Request) {
 
 export async function GET() {
   try {
+    const unauthorizedResponse = await requireAdminSession();
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
+    }
+
     const orders = await prisma.order.findMany({
       include: {
         items: true,
