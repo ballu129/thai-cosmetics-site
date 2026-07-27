@@ -5,8 +5,6 @@ import { prisma } from "@/lib/prisma";
 
 type OrderItemRequest = {
   slug: string;
-  name: string;
-  price: number;
   quantity: number;
 };
 
@@ -19,7 +17,6 @@ type OrderRequest = {
     comment?: string;
   };
   items: OrderItemRequest[];
-  totalPrice: number;
 };
 
 function isValidOrderRequest(body: unknown): body is OrderRequest {
@@ -51,20 +48,20 @@ function isValidOrderRequest(body: unknown): body is OrderRequest {
   return order.items.every((item) => {
     return (
       typeof item.slug === "string" &&
-      typeof item.name === "string" &&
-      typeof item.price === "number" &&
-      Number.isFinite(item.price) &&
-      item.price >= 0 &&
       typeof item.quantity === "number" &&
-      Number.isInteger(item.quantity) &&
+      Number.isSafeInteger(item.quantity) &&
       item.quantity > 0
     );
   });
 }
 
-function calculateOrderTotal(items: OrderItemRequest[]) {
+function calculateOrderTotal(
+  items: Array<{
+    lineTotal: number;
+  }>,
+) {
   return items.reduce((total, item) => {
-    return total + item.price * item.quantity;
+    return total + item.lineTotal;
   }, 0);
 }
 
@@ -103,7 +100,97 @@ export async function POST(request: Request) {
 
     const session = await auth();
 
-    const totalPrice = calculateOrderTotal(body.items);
+    const quantityBySlug = new Map<string, number>();
+
+    for (const item of body.items) {
+      const slug = cleanText(item.slug);
+
+      if (!slug) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Переданы некорректные данные заказа.",
+          },
+          { status: 400 },
+        );
+      }
+
+      quantityBySlug.set(
+        slug,
+        (quantityBySlug.get(slug) ?? 0) + item.quantity,
+      );
+    }
+
+    const requestedSlugs = Array.from(quantityBySlug.keys());
+
+    const products = await prisma.product.findMany({
+      where: {
+        slug: {
+          in: requestedSlugs,
+        },
+        brand: {
+          is: {
+            isActive: true,
+          },
+        },
+      },
+      select: {
+        slug: true,
+        name: true,
+        price: true,
+      },
+    });
+
+    const productsBySlug = new Map(
+      products.map((product) => [product.slug, product]),
+    );
+
+    if (
+      requestedSlugs.some((slug) => !productsBySlug.has(slug))
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Один или несколько товаров недоступны для оформления.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const orderItems = requestedSlugs.map((slug) => {
+      const product = productsBySlug.get(slug)!;
+      const quantity = quantityBySlug.get(slug)!;
+      const unitPrice = Number(product.price);
+      const lineTotal = unitPrice * quantity;
+
+      return {
+        productSlug: product.slug,
+        productName: product.name,
+        unitPrice,
+        quantity,
+        lineTotal,
+      };
+    });
+
+    if (
+      orderItems.some((item) => {
+        return (
+          !Number.isFinite(item.unitPrice) ||
+          item.unitPrice < 0 ||
+          !Number.isFinite(item.lineTotal)
+        );
+      })
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Один или несколько товаров недоступны для оформления.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const totalPrice = calculateOrderTotal(orderItems);
 
     const order = await prisma.order.create({
       data: {
@@ -117,13 +204,7 @@ export async function POST(request: Request) {
         userId: session?.user?.id ?? null,
 
         items: {
-          create: body.items.map((item) => ({
-            productSlug: item.slug,
-            productName: item.name,
-            unitPrice: item.price,
-            quantity: item.quantity,
-            lineTotal: item.price * item.quantity,
-          })),
+          create: orderItems,
         },
       },
       include: {
