@@ -29,6 +29,11 @@ type Order = {
   status: OrderStatus;
   createdAt: string;
   items: OrderItem[];
+  user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+  } | null;
 };
 
 type SortOption =
@@ -81,10 +86,6 @@ export default function OrdersTable() {
 
     loadOrders();
   }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, statusFilter, sortOption, pageSize]);
 
   const filteredOrders = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -204,7 +205,10 @@ export default function OrdersTable() {
           type="search"
           placeholder="Поиск по имени, телефону или email"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setCurrentPage(1);
+          }}
           style={{
             minWidth: 300,
             padding: 10,
@@ -213,11 +217,12 @@ export default function OrdersTable() {
 
         <select
           value={statusFilter}
-          onChange={(event) =>
+          onChange={(event) => {
             setStatusFilter(
               event.target.value as "ALL" | OrderStatus,
-            )
-          }
+            );
+            setCurrentPage(1);
+          }}
           style={{ padding: 10 }}
         >
           <option value="ALL">Все статусы</option>
@@ -231,9 +236,10 @@ export default function OrdersTable() {
 
         <select
           value={sortOption}
-          onChange={(event) =>
-            setSortOption(event.target.value as SortOption)
-          }
+          onChange={(event) => {
+            setSortOption(event.target.value as SortOption);
+            setCurrentPage(1);
+          }}
           style={{ padding: 10 }}
         >
           <option value="date-desc">Сначала новые</option>
@@ -248,9 +254,10 @@ export default function OrdersTable() {
 
         <select
           value={pageSize}
-          onChange={(event) =>
-            setPageSize(Number(event.target.value))
-          }
+          onChange={(event) => {
+            setPageSize(Number(event.target.value));
+            setCurrentPage(1);
+          }}
           style={{ padding: 10 }}
         >
           <option value={20}>20 заказов</option>
@@ -276,6 +283,9 @@ export default function OrdersTable() {
             >
               <thead>
                 <tr>
+                  <th style={cellStyle}>Номер</th>
+                  <th style={cellStyle}>Дата</th>
+                  <th style={cellStyle}>Пользователь</th>
                   <th style={cellStyle}>Клиент</th>
                   <th style={cellStyle}>Телефон</th>
                   <th style={cellStyle}>Email</th>
@@ -283,95 +293,105 @@ export default function OrdersTable() {
                   <th style={cellStyle}>Состав заказа</th>
                   <th style={cellStyle}>Сумма</th>
                   <th style={cellStyle}>Статус</th>
-                  <th style={cellStyle}>Дата</th>
                   <th style={cellStyle}>Действия</th>
                 </tr>
               </thead>
 
               <tbody>
-                {visibleOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td style={cellStyle}>
-                      {order.customerName}
-                    </td>
+                {visibleOrders.map((order) => {
+                  const userName =
+                    order.user?.name ||
+                    order.user?.email ||
+                    "Гость";
 
-                    <td style={cellStyle}>{order.phone}</td>
+                  return (
+                    <tr key={order.id}>
+                      <td style={cellStyle}>{order.id}</td>
 
-                    <td style={cellStyle}>{order.email}</td>
+                      <td style={cellStyle}>
+                        {new Date(
+                          order.createdAt,
+                        ).toLocaleString("ru-RU")}
+                      </td>
 
-                    <td style={cellStyle}>{order.address}</td>
+                      <td style={cellStyle}>{userName}</td>
 
-                    <td style={cellStyle}>
-                      {order.items.map((item) => (
-                        <div
-                          key={item.id}
-                          style={{ marginBottom: 8 }}
+                      <td style={cellStyle}>
+                        {order.customerName}
+                      </td>
+
+                      <td style={cellStyle}>{order.phone}</td>
+
+                      <td style={cellStyle}>{order.email}</td>
+
+                      <td style={cellStyle}>{order.address}</td>
+
+                      <td style={cellStyle}>
+                        {order.items.map((item) => (
+                          <div
+                            key={item.id}
+                            style={{ marginBottom: 8 }}
+                          >
+                            <strong>{item.productName}</strong>
+                            <br />
+                            {item.quantity} шт. ×{" "}
+                            {Number(item.unitPrice).toFixed(2)} ={" "}
+                            {Number(item.lineTotal).toFixed(2)}
+                          </div>
+                        ))}
+                      </td>
+
+                      <td style={cellStyle}>
+                        {Number(order.totalAmount).toFixed(2)}
+                      </td>
+
+                      <td style={cellStyle}>
+                        <select
+                          value={order.status}
+                          disabled={updatingId === order.id}
+                          onChange={(event) =>
+                            changeStatus(
+                              order.id,
+                              event.target.value as OrderStatus,
+                            )
+                          }
+                          style={{ padding: 8 }}
                         >
-                          <strong>{item.productName}</strong>
-                          <br />
-                          {item.quantity} шт. ×{" "}
-                          {Number(item.unitPrice).toFixed(2)} ={" "}
-                          {Number(item.lineTotal).toFixed(2)}
-                        </div>
-                      ))}
-                    </td>
+                          {Object.entries(statusNames).map(
+                            ([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ),
+                          )}
+                        </select>
 
-                    <td style={cellStyle}>
-                      {Number(order.totalAmount).toFixed(2)}
-                    </td>
-
-                    <td style={cellStyle}>
-                      <select
-                        value={order.status}
-                        disabled={updatingId === order.id}
-                        onChange={(event) =>
-                          changeStatus(
-                            order.id,
-                            event.target.value as OrderStatus,
-                          )
-                        }
-                        style={{ padding: 8 }}
-                      >
-                        {Object.entries(statusNames).map(
-                          ([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ),
+                        {updatingId === order.id && (
+                          <div style={{ marginTop: 6 }}>
+                            Сохранение...
+                          </div>
                         )}
-                      </select>
+                      </td>
 
-                      {updatingId === order.id && (
-                        <div style={{ marginTop: 6 }}>
-                          Сохранение...
-                        </div>
-                      )}
-                    </td>
-
-                    <td style={cellStyle}>
-                      {new Date(
-                        order.createdAt,
-                      ).toLocaleString()}
-                    </td>
-
-                    <td style={cellStyle}>
-                      <Link
-                        href={`/admin/orders/${order.id}`}
-                        style={{
-                          display: "inline-block",
-                          padding: "7px 12px",
-                          border: "1px solid #777",
-                          borderRadius: 6,
-                          color: "inherit",
-                          textDecoration: "none",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        Открыть
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      <td style={cellStyle}>
+                        <Link
+                          href={`/admin/orders/${order.id}`}
+                          style={{
+                            display: "inline-block",
+                            padding: "7px 12px",
+                            border: "1px solid #777",
+                            borderRadius: 6,
+                            color: "inherit",
+                            textDecoration: "none",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Открыть
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
