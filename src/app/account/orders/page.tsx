@@ -47,14 +47,49 @@ export default async function OrdersPage() {
         <h1>Мои заказы</h1>
 
         {orders.length === 0 ? (
-          <p
+          <div
             style={{
-              marginTop: "16px",
-              color: "#64748b",
+              marginTop: "24px",
+              padding: "32px",
+              border: "1px solid #e2e8f0",
+              borderRadius: "8px",
+              background: "#ffffff",
             }}
           >
-            У вас пока нет заказов.
-          </p>
+            <h2
+              style={{
+                margin: "0 0 12px",
+                fontSize: "24px",
+              }}
+            >
+              У вас пока нет заказов
+            </h2>
+
+            <p
+              style={{
+                margin: "0 0 24px",
+                color: "#64748b",
+                lineHeight: 1.5,
+              }}
+            >
+              Выберите товары в каталоге и оформите первый заказ.
+            </p>
+
+            <Link
+              href="/catalog"
+              style={{
+                display: "inline-block",
+                padding: "12px 18px",
+                borderRadius: "8px",
+                background: "#254b3f",
+                color: "#ffffff",
+                textDecoration: "none",
+                fontWeight: 600,
+              }}
+            >
+              Перейти в каталог
+            </Link>
+          </div>
         ) : (
           <div
             style={{
@@ -68,58 +103,72 @@ export default async function OrdersPage() {
                 statusLabels[
                   order.status as keyof typeof statusLabels
                 ] ?? order.status;
+              const orderDate = order.createdAt.toLocaleDateString("ru-RU", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              });
 
               return (
-                <Link
+                <article
                   key={order.id}
-                  href={`/account/orders/${order.id}`}
                   style={{
-                    color: "inherit",
-                    textDecoration: "none",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    padding: "24px",
+                    background: "#ffffff",
+                    boxShadow: "0 4px 18px rgba(15, 23, 42, 0.05)",
                   }}
                 >
-                  <article
+                  <div
                     style={{
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "16px",
-                      padding: "24px",
-                      background: "#ffffff",
-                      boxShadow: "0 4px 18px rgba(15, 23, 42, 0.05)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "20px",
+                      alignItems: "flex-start",
+                      flexWrap: "wrap",
                     }}
                   >
-                    <h2
+                    <div>
+                      <h2
+                        style={{
+                          marginTop: 0,
+                          marginBottom: "12px",
+                        }}
+                      >
+                        Заказ № {order.id}
+                      </h2>
+
+                      <p>
+                        Дата оформления: {orderDate}
+                      </p>
+
+                      <p>
+                        Статус: {status}
+                      </p>
+
+                      <p>
+                        Общая сумма:{" "}
+                        {Number(order.totalAmount).toLocaleString("ru-RU")} ₽
+                      </p>
+                    </div>
+
+                    <Link
+                      href={`/account/orders/${order.id}`}
                       style={{
-                        marginTop: 0,
-                        marginBottom: "16px",
-                      }}
-                    >
-                      Заказ № {order.id}
-                    </h2>
-
-                    <p>
-                      Статус: {status}
-                    </p>
-
-                    <p>
-                      Сумма:{" "}
-                      {Number(order.totalAmount).toLocaleString("ru-RU")} ₽
-                    </p>
-
-                    <p>
-                      Позиций в заказе: {order.items.length}
-                    </p>
-
-                    <p
-                      style={{
-                        marginBottom: 0,
-                        marginTop: "20px",
+                        display: "inline-block",
+                        padding: "10px 16px",
+                        border: "1px solid #254b3f",
+                        borderRadius: "8px",
+                        color: "#254b3f",
+                        textDecoration: "none",
                         fontWeight: 600,
                       }}
                     >
-                      Открыть заказ →
-                    </p>
-                  </article>
-                </Link>
+                      Подробнее
+                    </Link>
+                  </div>
+                </article>
               );
             })}
           </div>
