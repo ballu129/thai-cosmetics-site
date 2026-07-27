@@ -2,9 +2,16 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/admin-auth";
 
 export async function POST(request: Request) {
   try {
+    const unauthorizedResponse = await requireAdminSession();
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
+    }
+
     const formData = await request.formData();
 
     const file = formData.get("file");

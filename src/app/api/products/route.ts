@@ -1,4 +1,5 @@
 ﻿import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/admin-auth";
 import prisma from "@/lib/prisma";
 
 export async function GET() {
@@ -16,6 +17,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const unauthorizedResponse = await requireAdminSession();
+
+    if (unauthorizedResponse) {
+      return unauthorizedResponse;
+    }
+
     const body = await request.json();
 
     const product = await prisma.product.create({

@@ -1,10 +1,17 @@
 ﻿import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const unauthorizedResponse = await requireAdminSession();
+
+  if (unauthorizedResponse) {
+    return unauthorizedResponse;
+  }
+
   const { id } = await params;
 
   const product = await prisma.product.findUnique({
@@ -26,6 +33,12 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const unauthorizedResponse = await requireAdminSession();
+
+  if (unauthorizedResponse) {
+    return unauthorizedResponse;
+  }
+
   const { id } = await params;
   const body = await request.json();
 
@@ -46,6 +59,12 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const unauthorizedResponse = await requireAdminSession();
+
+  if (unauthorizedResponse) {
+    return unauthorizedResponse;
+  }
+
   const { id } = await params;
 
   await prisma.product.delete({
