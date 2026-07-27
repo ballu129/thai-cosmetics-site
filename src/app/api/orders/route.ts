@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-auth";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 type OrderItemRequest = {
@@ -100,6 +101,8 @@ export async function POST(request: Request) {
       );
     }
 
+    const session = await auth();
+
     const totalPrice = calculateOrderTotal(body.items);
 
     const order = await prisma.order.create({
@@ -111,6 +114,7 @@ export async function POST(request: Request) {
         country: "",
         city: "",
         totalAmount: totalPrice,
+        userId: session?.user?.id ?? null,
 
         items: {
           create: body.items.map((item) => ({
