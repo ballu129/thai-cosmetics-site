@@ -19,6 +19,10 @@ const statusLabels = {
   CANCELLED: "Отменён",
 } as const;
 
+function formatCurrency(value: unknown) {
+  return `${Number(value).toLocaleString("ru-RU")} ₽`;
+}
+
 export const metadata = {
   title: "Информация о заказе",
 };
@@ -48,6 +52,33 @@ export default async function OrderPage({ params }: OrderPageProps) {
 
   const status =
     statusLabels[order.status as keyof typeof statusLabels] ?? order.status;
+  const orderDate = order.createdAt.toLocaleString("ru-RU");
+  const deliveryFields = [
+    {
+      label: "Получатель",
+      value: order.customerName,
+    },
+    {
+      label: "Телефон",
+      value: order.phone,
+    },
+    {
+      label: "Email",
+      value: order.email,
+    },
+    {
+      label: "Страна",
+      value: order.country,
+    },
+    {
+      label: "Город",
+      value: order.city,
+    },
+    {
+      label: "Адрес",
+      value: order.address,
+    },
+  ].filter((field) => field.value.trim().length > 0);
 
   return (
     <main className="container">
@@ -77,25 +108,80 @@ export default async function OrderPage({ params }: OrderPageProps) {
         >
           <h1
             style={{
-              marginTop: 0,
+              margin: "0 0 20px",
             }}
           >
             Заказ № {order.id}
           </h1>
 
-          <p>
-            <strong>Дата:</strong>{" "}
-            {order.createdAt.toLocaleString("ru-RU")}
-          </p>
+          <dl
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "16px",
+              margin: 0,
+            }}
+          >
+            <div>
+              <dt
+                style={{
+                  color: "#64748b",
+                  fontSize: "14px",
+                  marginBottom: "6px",
+                }}
+              >
+                Дата
+              </dt>
+              <dd
+                style={{
+                  margin: 0,
+                  fontWeight: 600,
+                }}
+              >
+                {orderDate}
+              </dd>
+            </div>
 
-          <p>
-            <strong>Статус:</strong> {status}
-          </p>
+            <div>
+              <dt
+                style={{
+                  color: "#64748b",
+                  fontSize: "14px",
+                  marginBottom: "6px",
+                }}
+              >
+                Статус
+              </dt>
+              <dd
+                style={{
+                  margin: 0,
+                  fontWeight: 600,
+                }}
+              >
+                {status}
+              </dd>
+            </div>
 
-          <p>
-            <strong>Сумма:</strong>{" "}
-            {Number(order.totalAmount).toLocaleString("ru-RU")} ₽
-          </p>
+            <div>
+              <dt
+                style={{
+                  color: "#64748b",
+                  fontSize: "14px",
+                  marginBottom: "6px",
+                }}
+              >
+                Итоговая стоимость
+              </dt>
+              <dd
+                style={{
+                  margin: 0,
+                  fontWeight: 700,
+                }}
+              >
+                {formatCurrency(order.totalAmount)}
+              </dd>
+            </div>
+          </dl>
 
           <hr
             style={{
@@ -132,46 +218,116 @@ export default async function OrderPage({ params }: OrderPageProps) {
                   {item.productName}
                 </h3>
 
-                <p>Количество: {item.quantity}</p>
+                <dl
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: "12px",
+                    margin: 0,
+                  }}
+                >
+                  <div>
+                    <dt
+                      style={{
+                        color: "#64748b",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Количество
+                    </dt>
+                    <dd
+                      style={{
+                        margin: "6px 0 0",
+                      }}
+                    >
+                      {item.quantity}
+                    </dd>
+                  </div>
 
-                <p>
-                  Цена за единицу:{" "}
-                  {Number(item.unitPrice).toLocaleString("ru-RU")} ₽
-                </p>
+                  <div>
+                    <dt
+                      style={{
+                        color: "#64748b",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Цена за единицу
+                    </dt>
+                    <dd
+                      style={{
+                        margin: "6px 0 0",
+                      }}
+                    >
+                      {formatCurrency(item.unitPrice)}
+                    </dd>
+                  </div>
 
-                <p>
-                  Итого:{" "}
-                  {Number(item.lineTotal).toLocaleString("ru-RU")} ₽
-                </p>
+                  <div>
+                    <dt
+                      style={{
+                        color: "#64748b",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Итого
+                    </dt>
+                    <dd
+                      style={{
+                        margin: "6px 0 0",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {formatCurrency(item.lineTotal)}
+                    </dd>
+                  </div>
+                </dl>
               </div>
             ))}
           </div>
 
-          <hr
-            style={{
-              margin: "28px 0",
-              border: 0,
-              borderTop: "1px solid #e2e8f0",
-            }}
-          />
+          {deliveryFields.length > 0 ? (
+            <>
+              <hr
+                style={{
+                  margin: "28px 0",
+                  border: 0,
+                  borderTop: "1px solid #e2e8f0",
+                }}
+              />
 
-          <h2>Доставка</h2>
+              <h2>Доставка</h2>
 
-          <p>
-            <strong>Получатель:</strong> {order.customerName}
-          </p>
-
-          <p>
-            <strong>Телефон:</strong> {order.phone}
-          </p>
-
-          <p>
-            <strong>Email:</strong> {order.email}
-          </p>
-
-          <p>
-            <strong>Адрес:</strong> {order.address}
-          </p>
+              <dl
+                style={{
+                  display: "grid",
+                  gap: "12px",
+                  margin: 0,
+                }}
+              >
+                {deliveryFields.map((field) => (
+                  <div key={field.label}>
+                    <dt
+                      style={{
+                        color: "#64748b",
+                        fontSize: "14px",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      {field.label}
+                    </dt>
+                    <dd
+                      style={{
+                        margin: 0,
+                      }}
+                    >
+                      {field.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </>
+          ) : null}
         </article>
       </section>
     </main>
