@@ -1,11 +1,20 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { auth } from "@/lib/auth";
 
 export const metadata = {
   title: "Личный кабинет",
-  description: "Личный кабинет покупателя.",
+  description: "Личный кабинет покупателя SIAM CARE.",
 };
 
-export default function AccountPage() {
+export default async function AccountPage() {
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect("/login?callbackUrl=/account");
+  }
+
   return (
     <main className="container">
       <section
@@ -42,6 +51,7 @@ export default function AccountPage() {
               }}
             >
               Добро пожаловать
+              {session.user.name ? `, ${session.user.name}` : ""}
             </h1>
 
             <p
@@ -52,8 +62,7 @@ export default function AccountPage() {
                 lineHeight: 1.6,
               }}
             >
-              Здесь будут храниться ваши заказы, адреса доставки, избранные
-              товары и бонусы.
+              Здесь хранится история ваших заказов и их текущие статусы.
             </p>
           </div>
 
@@ -68,24 +77,6 @@ export default function AccountPage() {
               title="Мои заказы"
               description="История покупок и статус текущих заказов."
               href="/account/orders"
-            />
-
-            <AccountCard
-              title="Избранное"
-              description="Товары, которые вы сохранили."
-              href="/account/favorites"
-            />
-
-            <AccountCard
-              title="Адреса доставки"
-              description="Сохранённые адреса для быстрого оформления."
-              href="/account/addresses"
-            />
-
-            <AccountCard
-              title="Бонусы"
-              description="Баланс бонусов и история начислений."
-              href="/account/bonuses"
             />
           </div>
         </div>
