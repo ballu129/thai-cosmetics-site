@@ -1,15 +1,24 @@
-﻿"use client";
+"use client";
 
 import { ChangeEvent, FormEvent, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+
+type Brand = {
+  id: string;
+  name: string;
+};
 
 type ProductData = {
   id: string;
   name: string;
+  slug: string;
+  brandId: string;
   category: string;
   price: number;
   description: string;
   healing: boolean;
+  activeIngredients: string[];
   imageUrl: string;
 };
 
@@ -20,17 +29,24 @@ type UploadResponse = {
 };
 
 export default function AdminProductForm({
+  brands,
   product,
 }: {
+  brands: Brand[];
   product: ProductData;
 }) {
   const router = useRouter();
 
   const [name, setName] = useState(product.name);
+  const [slug, setSlug] = useState(product.slug);
+  const [brandId, setBrandId] = useState(product.brandId);
   const [category, setCategory] = useState(product.category);
   const [price, setPrice] = useState(String(product.price));
   const [description, setDescription] = useState(product.description);
   const [healing, setHealing] = useState(product.healing);
+  const [activeIngredients, setActiveIngredients] = useState(
+    product.activeIngredients.join(", "),
+  );
   const [imageUrl, setImageUrl] = useState(product.imageUrl ?? "");
 
   const [uploading, setUploading] = useState(false);
@@ -94,10 +110,16 @@ export default function AdminProductForm({
         },
         body: JSON.stringify({
           name,
+          slug,
+          brandId,
           category,
           price: Number(price),
           description,
           healing,
+          activeIngredients: activeIngredients
+            .split(",")
+            .map((ingredient) => ingredient.trim())
+            .filter(Boolean),
           imageUrl: imageUrl.trim() || null,
         }),
       });
@@ -141,6 +163,33 @@ export default function AdminProductForm({
       </label>
 
       <label>
+        Адрес товара — slug
+        <input
+          type="text"
+          required
+          value={slug}
+          onChange={(event) => setSlug(event.target.value)}
+          style={{ width: "100%", padding: 10 }}
+        />
+      </label>
+
+      <label>
+        Бренд
+        <select
+          required
+          value={brandId}
+          onChange={(event) => setBrandId(event.target.value)}
+          style={{ width: "100%", padding: 10 }}
+        >
+          {brands.map((brand) => (
+            <option key={brand.id} value={brand.id}>
+              {brand.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label>
         Категория
         <input
           type="text"
@@ -156,7 +205,7 @@ export default function AdminProductForm({
         <input
           type="number"
           required
-          min="0"
+          min="0.01"
           step="0.01"
           value={price}
           onChange={(event) => setPrice(event.target.value)}
@@ -171,6 +220,19 @@ export default function AdminProductForm({
           rows={6}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
+          style={{ width: "100%", padding: 10 }}
+        />
+      </label>
+
+      <label>
+        Активные ингредиенты
+        <input
+          type="text"
+          value={activeIngredients}
+          onChange={(event) =>
+            setActiveIngredients(event.target.value)
+          }
+          placeholder="ментол, камфора, тайские травы"
           style={{ width: "100%", padding: 10 }}
         />
       </label>
@@ -206,9 +268,12 @@ export default function AdminProductForm({
       {imageUrl && (
         <div>
           <p style={{ marginTop: 0 }}>Предпросмотр</p>
-          <img
+          <Image
             src={imageUrl}
             alt="Предпросмотр товара"
+            width={240}
+            height={240}
+            unoptimized
             style={{
               display: "block",
               width: 240,
@@ -232,6 +297,12 @@ export default function AdminProductForm({
         Лечебный товар
       </label>
 
+      {brands.length === 0 && (
+        <p style={{ color: "red", margin: 0 }}>
+          В базе нет активных брендов. Сначала нужно создать бренд.
+        </p>
+      )}
+
       {error && (
         <p style={{ color: "red", margin: 0 }}>
           {error}
@@ -240,10 +311,13 @@ export default function AdminProductForm({
 
       <button
         type="submit"
-        disabled={saving || uploading}
+        disabled={saving || uploading || brands.length === 0}
         style={{
           padding: 12,
-          cursor: saving || uploading ? "default" : "pointer",
+          cursor:
+            saving || uploading || brands.length === 0
+              ? "default"
+              : "pointer",
         }}
       >
         {saving ? "Сохранение..." : "Сохранить"}

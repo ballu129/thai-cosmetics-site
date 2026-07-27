@@ -1,10 +1,11 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
+import { validateProductInput } from "../product-input";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const unauthorizedResponse = await requireAdminSession();
 
@@ -22,7 +23,7 @@ export async function GET(
   if (!product) {
     return NextResponse.json(
       { error: "Товар не найден" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -31,7 +32,7 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const unauthorizedResponse = await requireAdminSession();
 
@@ -40,24 +41,73 @@ export async function PUT(
   }
 
   const { id } = await params;
-  const body = await request.json();
+  const validation = validateProductInput(await request.json());
+
+  if (!validation.success) {
+    return NextResponse.json(
+      { error: validation.error },
+      { status: 400 },
+    );
+  }
+
+  const [existingProduct, brand, productWithSlug] = await Promise.all([
+    prisma.product.findUnique({
+      where: { id },
+      select: {
+        id: true,
+      },
+    }),
+    prisma.brand.findFirst({
+      where: {
+        id: validation.data.brandId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    }),
+    prisma.product.findUnique({
+      where: {
+        slug: validation.data.slug,
+      },
+      select: {
+        id: true,
+      },
+    }),
+  ]);
+
+  if (!existingProduct) {
+    return NextResponse.json(
+      { error: "Товар не найден" },
+      { status: 404 },
+    );
+  }
+
+  if (!brand) {
+    return NextResponse.json(
+      { error: "Выберите активный бренд товара." },
+      { status: 400 },
+    );
+  }
+
+  if (productWithSlug && productWithSlug.id !== id) {
+    return NextResponse.json(
+      { error: "Товар с таким slug уже существует." },
+      { status: 400 },
+    );
+  }
 
   const product = await prisma.product.update({
     where: { id },
-    data: {
-      name: body.name,
-      category: body.category,
-      price: body.price,
-      description: body.description,
-      healing: body.healing,
-      imageUrl: body.imageUrl,
-    },
+    data: validation.data,
   });
 
   return NextResponse.json(product);
-}export async function DELETE(
+}
+
+export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const unauthorizedResponse = await requireAdminSession();
 

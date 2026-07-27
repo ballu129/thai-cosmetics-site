@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import AdminProductForm from "@/components/AdminProductForm";
@@ -10,16 +10,47 @@ export default async function EditProductPage({
 }) {
   const { id } = await params;
 
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      brand: true,
-    },
-  });
+  const [product, activeBrands] = await Promise.all([
+    prisma.product.findUnique({
+      where: { id },
+    }),
+    prisma.brand.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+  ]);
 
   if (!product) {
     notFound();
   }
+
+  const currentBrandIsVisible = activeBrands.some(
+    (brand) => brand.id === product.brandId,
+  );
+
+  const currentBrand = currentBrandIsVisible
+    ? null
+    : await prisma.brand.findUnique({
+        where: {
+          id: product.brandId,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+  const brands = currentBrand
+    ? [...activeBrands, currentBrand]
+    : activeBrands;
 
   return (
     <main
@@ -38,13 +69,17 @@ export default async function EditProductPage({
       </h1>
 
       <AdminProductForm
+        brands={brands}
         product={{
           id: product.id,
           name: product.name,
+          slug: product.slug,
+          brandId: product.brandId,
           category: product.category,
           price: Number(product.price),
           description: product.description,
           healing: product.healing,
+          activeIngredients: product.activeIngredients,
           imageUrl: product.imageUrl ?? "",
         }}
       />

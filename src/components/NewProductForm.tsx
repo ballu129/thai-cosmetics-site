@@ -72,7 +72,7 @@ if (imageFile) {
             .split(",")
             .map((ingredient) => ingredient.trim())
             .filter(Boolean),
-          imageUrl: imageUrl.trim() || null,
+          imageUrl: uploadedImageUrl,
           brandId,
         }),
       });
@@ -159,7 +159,7 @@ if (imageFile) {
         <input
           type="number"
           required
-          min="0"
+          min="0.01"
           step="0.01"
           value={price}
           onChange={(event) => setPrice(event.target.value)}
@@ -199,6 +199,33 @@ if (imageFile) {
           onChange={(event) => setImageUrl(event.target.value)}
           placeholder="/products/example.jpg"
           style={{ width: "100%", padding: 10 }}
+        />
+      </label>
+
+      <label>
+        Выбрать изображение
+        <input
+          type="file"
+          accept="image/*"
+          disabled={saving}
+          onChange={(event) => {
+            const file = event.target.files?.[0] ?? null;
+
+            if (file && !file.type.startsWith("image/")) {
+              setError("Можно загружать только изображения.");
+              event.target.value = "";
+              setImageFile(null);
+              return;
+            }
+
+            setImageFile(file);
+          }}
+          style={{
+            display: "block",
+            width: "100%",
+            marginTop: 8,
+            padding: 10,
+          }}
         />
       </label>
 
