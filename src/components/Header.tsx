@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
 
 import { useCart } from "@/components/CartProvider";
 import styles from "./Header.module.css";
 
 export default function Header() {
   const { items } = useCart();
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
 
   const totalItems = items.reduce(
     (sum, item) => sum + item.quantity,
@@ -39,9 +42,29 @@ export default function Header() {
             gap: "12px",
           }}
         >
-          <Link className={styles.account} href="/login">
-            Войти
-          </Link>
+          {isAuthenticated ? (
+            <>
+              <Link className={styles.account} href="/account">
+                Личный кабинет
+              </Link>
+
+              <button
+                className={styles.account}
+                type="button"
+                onClick={() => signOut()}
+                style={{
+                  background: "transparent",
+                  cursor: "pointer",
+                }}
+              >
+                Выйти
+              </button>
+            </>
+          ) : (
+            <Link className={styles.account} href="/login">
+              Войти
+            </Link>
+          )}
 
           <Link className={styles.account} href="/cart">
             🛒 Корзина ({totalItems})
