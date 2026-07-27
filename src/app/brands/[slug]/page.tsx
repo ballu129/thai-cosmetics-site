@@ -8,14 +8,23 @@ type BrandPageProps = {
   }>;
 };
 
+function decodeSlug(slug: string) {
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
+}
+
 export default async function BrandPage({
   params,
 }: BrandPageProps) {
   const { slug } = await params;
+  const decodedSlug = decodeSlug(slug);
 
   const brand = await prisma.brand.findUnique({
     where: {
-      slug,
+      slug: decodedSlug,
     },
     include: {
       products: {

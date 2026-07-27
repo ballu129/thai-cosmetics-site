@@ -28,7 +28,7 @@ export default async function BrandsPage() {
 
             {brand.description && <p>{brand.description}</p>}
 
-            <Link href={`/brands/${brand.slug}`}>
+            <Link href={`/brands/${encodeURIComponent(brand.slug)}`}>
               Посмотреть товары
             </Link>
           </article>
