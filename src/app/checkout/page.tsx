@@ -27,6 +27,7 @@ export default function CheckoutPage() {
   const [form, setForm] = useState<CheckoutForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState("");
   const [error, setError] = useState("");
 
   const totalPrice = useMemo(() => {
@@ -49,6 +50,7 @@ export default function CheckoutPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setCreatedOrderId("");
 
     if (
       !form.fullName.trim() ||
@@ -94,7 +96,12 @@ export default function CheckoutPage() {
         );
       }
 
+      if (typeof result?.orderId !== "string" || !result.orderId) {
+        throw new Error("Не удалось получить номер заказа.");
+      }
+
       clearCart();
+      setCreatedOrderId(result.orderId);
       setForm(initialForm);
       setIsSuccess(true);
     } catch (submitError) {
@@ -116,11 +123,15 @@ export default function CheckoutPage() {
             <h1 className={styles.title}>Спасибо за заказ!</h1>
 
             <p className={styles.text}>
-              Заказ успешно отправлен. Мы свяжемся с вами в ближайшее время.
+              Заказ успешно оформлен. Мы свяжемся с вами в ближайшее время.
             </p>
 
-            <Link className={styles.button} href="/catalog">
-              Вернуться в каталог
+            <p className={styles.text}>
+              Номер заказа: {createdOrderId}
+            </p>
+
+            <Link className={styles.button} href="/account/orders">
+              Перейти к моим заказам
             </Link>
           </div>
         </section>
