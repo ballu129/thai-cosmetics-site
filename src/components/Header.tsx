@@ -51,7 +51,7 @@ export default function Header() {
               <button
                 className={styles.account}
                 type="button"
-                onClick={() => signOut()}
+                onClick={() => signOut({ callbackUrl: "/" })}
                 style={{
                   background: "transparent",
                   cursor: "pointer",
