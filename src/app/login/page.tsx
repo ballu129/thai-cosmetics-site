@@ -1,10 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/account";
@@ -90,7 +90,7 @@ export default function LoginPage() {
             }}
           />
 
-          {error ? (
+          {error && (
             <p
               role="alert"
               style={{
@@ -101,7 +101,7 @@ export default function LoginPage() {
             >
               {error}
             </p>
-          ) : null}
+          )}
 
           <button
             type="submit"
@@ -117,5 +117,13 @@ export default function LoginPage() {
         </form>
       </section>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Загрузка...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
