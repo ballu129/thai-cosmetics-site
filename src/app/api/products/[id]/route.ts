@@ -72,7 +72,6 @@ export async function PUT(
     prisma.brand.findFirst({
       where: {
         id: validation.data.brandId,
-        isActive: true,
       },
       select: {
         id: true,
@@ -109,7 +108,7 @@ export async function PUT(
 
   if (!brand) {
     return NextResponse.json(
-      { error: "Выберите активный бренд товара." },
+      { error: "Выберите существующий бренд товара." },
       { status: 400 },
     );
   }
