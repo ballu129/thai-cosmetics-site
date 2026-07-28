@@ -3,18 +3,32 @@ import { prisma } from "@/lib/prisma";
 import NewProductForm from "@/components/NewProductForm";
 
 export default async function NewProductPage() {
-  const brands = await prisma.brand.findMany({
-    where: {
-      isActive: true,
-    },
-    orderBy: {
-      name: "asc",
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-  });
+  const [brands, categories] = await Promise.all([
+    prisma.brand.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+    prisma.category.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+  ]);
 
   return (
     <main
@@ -32,7 +46,7 @@ export default async function NewProductPage() {
         Новый товар
       </h1>
 
-      <NewProductForm brands={brands} />
+      <NewProductForm brands={brands} categories={categories} />
     </main>
   );
 }

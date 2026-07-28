@@ -2,7 +2,8 @@ type ProductInput = {
   name: string;
   slug: string;
   brandId: string;
-  category: string;
+  categoryId: string | null;
+  category: string | null;
   price: number;
   description: string;
   healing: boolean;
@@ -46,10 +47,17 @@ export function validateProductInput(
   const name = readRequiredString(body, "name");
   const slug = readRequiredString(body, "slug");
   const brandId = readRequiredString(body, "brandId");
+  const categoryId = readRequiredString(body, "categoryId");
   const category = readRequiredString(body, "category");
   const description = readRequiredString(body, "description");
 
-  if (!name || !slug || !brandId || !category || !description) {
+  if (
+    !name ||
+    !slug ||
+    !brandId ||
+    (!categoryId && !category) ||
+    !description
+  ) {
     return {
       success: false,
       error: "Заполните все обязательные поля товара.",
@@ -103,7 +111,8 @@ export function validateProductInput(
       name,
       slug,
       brandId,
-      category,
+      categoryId: categoryId || null,
+      category: category || null,
       price: body.price,
       description,
       healing: body.healing,

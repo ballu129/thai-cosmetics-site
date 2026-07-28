@@ -50,7 +50,12 @@ export async function PUT(
     );
   }
 
-  const [existingProduct, brand, productWithSlug] = await Promise.all([
+  const [
+    existingProduct,
+    brand,
+    category,
+    productWithSlug,
+  ] = await Promise.all([
     prisma.product.findUnique({
       where: { id },
       select: {
@@ -66,6 +71,17 @@ export async function PUT(
         id: true,
       },
     }),
+    validation.data.categoryId
+      ? prisma.category.findUnique({
+          where: {
+            id: validation.data.categoryId,
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        })
+      : null,
     prisma.product.findUnique({
       where: {
         slug: validation.data.slug,
@@ -90,6 +106,13 @@ export async function PUT(
     );
   }
 
+  if (validation.data.categoryId && !category) {
+    return NextResponse.json(
+      { error: "Выберите существующую категорию товара." },
+      { status: 400 },
+    );
+  }
+
   if (productWithSlug && productWithSlug.id !== id) {
     return NextResponse.json(
       { error: "Товар с таким slug уже существует." },
@@ -99,7 +122,18 @@ export async function PUT(
 
   const product = await prisma.product.update({
     where: { id },
-    data: validation.data,
+    data: {
+      name: validation.data.name,
+      slug: validation.data.slug,
+      brandId: validation.data.brandId,
+      category: category?.name ?? validation.data.category ?? "",
+      categoryId: category?.id ?? null,
+      price: validation.data.price,
+      description: validation.data.description,
+      healing: validation.data.healing,
+      activeIngredients: validation.data.activeIngredients,
+      imageUrl: validation.data.imageUrl,
+    },
   });
 
   return NextResponse.json(product);

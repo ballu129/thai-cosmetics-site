@@ -33,19 +33,39 @@ export async function POST(request: Request) {
       );
     }
 
-    const brand = await prisma.brand.findFirst({
-      where: {
-        id: validation.data.brandId,
-        isActive: true,
-      },
-      select: {
-        id: true,
-      },
-    });
+    const [brand, category] = await Promise.all([
+      prisma.brand.findFirst({
+        where: {
+          id: validation.data.brandId,
+          isActive: true,
+        },
+        select: {
+          id: true,
+        },
+      }),
+      validation.data.categoryId
+        ? prisma.category.findUnique({
+            where: {
+              id: validation.data.categoryId,
+            },
+            select: {
+              id: true,
+              name: true,
+            },
+          })
+        : null,
+    ]);
 
     if (!brand) {
       return NextResponse.json(
         { error: "Выберите активный бренд товара." },
+        { status: 400 },
+      );
+    }
+
+    if (validation.data.categoryId && !category) {
+      return NextResponse.json(
+        { error: "Выберите существующую категорию товара." },
         { status: 400 },
       );
     }
@@ -67,7 +87,18 @@ export async function POST(request: Request) {
     }
 
     const product = await prisma.product.create({
-      data: validation.data,
+      data: {
+        name: validation.data.name,
+        slug: validation.data.slug,
+        brandId: validation.data.brandId,
+        category: category?.name ?? validation.data.category ?? "",
+        categoryId: category?.id ?? null,
+        price: validation.data.price,
+        description: validation.data.description,
+        healing: validation.data.healing,
+        activeIngredients: validation.data.activeIngredients,
+        imageUrl: validation.data.imageUrl,
+      },
     });
 
     return NextResponse.json(product, { status: 201 });

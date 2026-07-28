@@ -9,12 +9,17 @@ type Brand = {
   name: string;
 };
 
+type Category = {
+  id: string;
+  name: string;
+};
+
 type ProductData = {
   id: string;
   name: string;
   slug: string;
   brandId: string;
-  category: string;
+  categoryId: string;
   price: number;
   description: string;
   healing: boolean;
@@ -30,9 +35,11 @@ type UploadResponse = {
 
 export default function AdminProductForm({
   brands,
+  categories,
   product,
 }: {
   brands: Brand[];
+  categories: Category[];
   product: ProductData;
 }) {
   const router = useRouter();
@@ -40,7 +47,7 @@ export default function AdminProductForm({
   const [name, setName] = useState(product.name);
   const [slug, setSlug] = useState(product.slug);
   const [brandId, setBrandId] = useState(product.brandId);
-  const [category, setCategory] = useState(product.category);
+  const [categoryId, setCategoryId] = useState(product.categoryId);
   const [price, setPrice] = useState(String(product.price));
   const [description, setDescription] = useState(product.description);
   const [healing, setHealing] = useState(product.healing);
@@ -112,7 +119,7 @@ export default function AdminProductForm({
           name,
           slug,
           brandId,
-          category,
+          categoryId,
           price: Number(price),
           description,
           healing,
@@ -191,13 +198,18 @@ export default function AdminProductForm({
 
       <label>
         Категория
-        <input
-          type="text"
+        <select
           required
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
+          value={categoryId}
+          onChange={(event) => setCategoryId(event.target.value)}
           style={{ width: "100%", padding: 10 }}
-        />
+        >
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label>
@@ -303,6 +315,12 @@ export default function AdminProductForm({
         </p>
       )}
 
+      {categories.length === 0 && (
+        <p style={{ color: "red", margin: 0 }}>
+          В базе нет категорий. Сначала нужно создать категорию.
+        </p>
+      )}
+
       {error && (
         <p style={{ color: "red", margin: 0 }}>
           {error}
@@ -311,11 +329,19 @@ export default function AdminProductForm({
 
       <button
         type="submit"
-        disabled={saving || uploading || brands.length === 0}
+        disabled={
+          saving ||
+          uploading ||
+          brands.length === 0 ||
+          categories.length === 0
+        }
         style={{
           padding: 12,
           cursor:
-            saving || uploading || brands.length === 0
+            saving ||
+            uploading ||
+            brands.length === 0 ||
+            categories.length === 0
               ? "default"
               : "pointer",
         }}

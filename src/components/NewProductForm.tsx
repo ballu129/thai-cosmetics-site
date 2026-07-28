@@ -8,23 +8,32 @@ type Brand = {
   name: string;
 };
 
+type Category = {
+  id: string;
+  name: string;
+};
+
 export default function NewProductForm({
   brands,
+  categories,
 }: {
   brands: Brand[];
+  categories: Category[];
 }) {
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
-  const [category, setCategory] = useState("");
+  const [categoryId, setCategoryId] = useState(
+    categories[0]?.id ?? "",
+  );
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
   const [healing, setHealing] = useState(false);
   const [activeIngredients, setActiveIngredients] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [brandId, setBrandId] = useState(brands[0]?.id ?? "");
+  const [brandId, setBrandId] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -64,7 +73,7 @@ if (imageFile) {
         body: JSON.stringify({
           name,
           slug,
-          category,
+          categoryId,
           price: Number(price),
           description,
           healing,
@@ -135,6 +144,9 @@ if (imageFile) {
           onChange={(event) => setBrandId(event.target.value)}
           style={{ width: "100%", padding: 10 }}
         >
+          <option value="" disabled>
+            Выберите бренд
+          </option>
           {brands.map((brand) => (
             <option key={brand.id} value={brand.id}>
               {brand.name}
@@ -145,13 +157,18 @@ if (imageFile) {
 
       <label>
         Категория
-        <input
-          type="text"
+        <select
           required
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
+          value={categoryId}
+          onChange={(event) => setCategoryId(event.target.value)}
           style={{ width: "100%", padding: 10 }}
-        />
+        >
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label>
@@ -244,6 +261,12 @@ if (imageFile) {
         </p>
       )}
 
+      {categories.length === 0 && (
+        <p style={{ color: "red", margin: 0 }}>
+          В базе нет категорий. Сначала нужно создать категорию.
+        </p>
+      )}
+
       {error && (
         <p style={{ color: "red", margin: 0 }}>
           {error}
@@ -252,11 +275,19 @@ if (imageFile) {
 
       <button
         type="submit"
-        disabled={saving || brands.length === 0}
+        disabled={
+          saving ||
+          !brandId ||
+          brands.length === 0 ||
+          categories.length === 0
+        }
         style={{
           padding: 12,
           cursor:
-            saving || brands.length === 0
+            saving ||
+            !brandId ||
+            brands.length === 0 ||
+            categories.length === 0
               ? "default"
               : "pointer",
         }}

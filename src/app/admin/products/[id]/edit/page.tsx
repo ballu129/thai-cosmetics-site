@@ -10,11 +10,23 @@ export default async function EditProductPage({
 }) {
   const { id } = await params;
 
-  const [product, activeBrands] = await Promise.all([
+  const [product, activeBrands, activeCategories] = await Promise.all([
     prisma.product.findUnique({
       where: { id },
     }),
     prisma.brand.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+    prisma.category.findMany({
       where: {
         isActive: true,
       },
@@ -52,6 +64,54 @@ export default async function EditProductPage({
     ? [...activeBrands, currentBrand]
     : activeBrands;
 
+  const currentCategoryIsVisible = product.categoryId
+    ? activeCategories.some(
+        (category) => category.id === product.categoryId,
+      )
+    : false;
+
+  const currentCategory =
+    product.categoryId && !currentCategoryIsVisible
+      ? await prisma.category.findUnique({
+          where: {
+            id: product.categoryId,
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        })
+      : null;
+
+  const fallbackCategory =
+    !product.categoryId && product.category
+      ? await prisma.category.findFirst({
+          where: {
+            name: product.category,
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        })
+      : null;
+
+  const categories = [
+    ...activeCategories,
+    ...(currentCategory &&
+    !activeCategories.some(
+      (category) => category.id === currentCategory.id,
+    )
+      ? [currentCategory]
+      : []),
+    ...(fallbackCategory &&
+    !activeCategories.some(
+      (category) => category.id === fallbackCategory.id,
+    )
+      ? [fallbackCategory]
+      : []),
+  ];
+
   return (
     <main
       style={{
@@ -70,12 +130,14 @@ export default async function EditProductPage({
 
       <AdminProductForm
         brands={brands}
+        categories={categories}
         product={{
           id: product.id,
           name: product.name,
           slug: product.slug,
           brandId: product.brandId,
-          category: product.category,
+          categoryId:
+            product.categoryId ?? fallbackCategory?.id ?? "",
           price: Number(product.price),
           description: product.description,
           healing: product.healing,
