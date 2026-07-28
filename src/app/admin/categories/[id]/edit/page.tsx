@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import CategoryForm from "@/components/CategoryForm";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Редактирование категории",
 };

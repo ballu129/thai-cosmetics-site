@@ -50,3 +50,5 @@ next-env.d.ts
 
 # Local status file
 status.txt
+.vercel
+.env*

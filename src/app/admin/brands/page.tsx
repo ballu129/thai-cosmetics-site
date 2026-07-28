@@ -1,5 +1,8 @@
 import Link from "next/link";
+import DeleteBrandButton from "./DeleteBrandButton";
 import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Бренды",
@@ -82,20 +85,32 @@ export default async function AdminBrandsPage() {
                 </td>
                 <td style={cellStyle}>{brand._count.products}</td>
                 <td style={cellStyle}>
-                  <Link
-                    href={`/admin/brands/${brand.id}/edit`}
+                  <div
                     style={{
-                      display: "inline-block",
-                      padding: "7px 12px",
-                      border: "1px solid #777",
-                      borderRadius: 6,
-                      color: "inherit",
-                      textDecoration: "none",
-                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
                     }}
                   >
-                    Редактировать
-                  </Link>
+                    <Link
+                      href={`/admin/brands/${brand.id}/edit`}
+                      style={{
+                        display: "inline-block",
+                        padding: "7px 12px",
+                        border: "1px solid #777",
+                        borderRadius: 6,
+                        color: "inherit",
+                        textDecoration: "none",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Редактировать
+                    </Link>
+
+                    <DeleteBrandButton
+                      brandId={brand.id}
+                      disabled={brand._count.products > 0}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}

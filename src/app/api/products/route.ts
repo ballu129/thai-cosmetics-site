@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-auth";
 import prisma from "@/lib/prisma";
 import { validateProductInput } from "./product-input";
@@ -41,6 +42,7 @@ export async function POST(request: Request) {
         },
         select: {
           id: true,
+          slug: true,
         },
       }),
       validation.data.categoryId
@@ -100,6 +102,14 @@ export async function POST(request: Request) {
         imageUrl: validation.data.imageUrl,
       },
     });
+
+    revalidatePath("/admin/products");
+    revalidatePath("/admin/brands");
+    revalidatePath("/admin/categories");
+    revalidatePath("/catalog");
+    revalidatePath("/brands");
+    revalidatePath(`/brands/${brand.slug}`);
+    revalidatePath(`/product/${product.slug}`);
 
     return NextResponse.json(product, { status: 201 });
   } catch {

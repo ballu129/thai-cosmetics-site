@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { validateBrandInput } from "../brand-input";
@@ -29,6 +30,7 @@ export async function PUT(
         where: { id },
         select: {
           id: true,
+          slug: true,
         },
       }),
       prisma.brand.findUnique({
@@ -62,6 +64,12 @@ export async function PUT(
       where: { id },
       data: validation.data,
     });
+
+    revalidatePath("/admin/brands");
+    revalidatePath("/admin/products/new");
+    revalidatePath("/brands");
+    revalidatePath(`/brands/${existingBrand.slug}`);
+    revalidatePath(`/brands/${brand.slug}`);
 
     return NextResponse.json({
       success: true,
@@ -131,6 +139,11 @@ export async function DELETE(
     await prisma.brand.delete({
       where: { id },
     });
+
+    revalidatePath("/admin/brands");
+    revalidatePath("/admin/products/new");
+    revalidatePath("/brands");
+    revalidatePath(`/brands/${brand.slug}`);
 
     return NextResponse.json({
       success: true,

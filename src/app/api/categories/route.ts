@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { validateCategoryInput } from "./category-input";
@@ -68,6 +69,9 @@ export async function POST(request: Request) {
     const category = await prisma.category.create({
       data: validation.data,
     });
+
+    revalidatePath("/admin/categories");
+    revalidatePath("/admin/products/new");
 
     return NextResponse.json(
       {

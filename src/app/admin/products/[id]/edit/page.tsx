@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import AdminProductForm from "@/components/AdminProductForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function EditProductPage({
   params,
 }: {

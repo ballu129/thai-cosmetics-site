@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { validateBrandInput } from "./brand-input";
@@ -68,6 +69,10 @@ export async function POST(request: Request) {
     const brand = await prisma.brand.create({
       data: validation.data,
     });
+
+    revalidatePath("/admin/brands");
+    revalidatePath("/admin/products/new");
+    revalidatePath("/brands");
 
     return NextResponse.json(
       {

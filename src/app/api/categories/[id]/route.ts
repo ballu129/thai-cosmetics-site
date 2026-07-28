@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { validateCategoryInput } from "../category-input";
@@ -99,6 +100,10 @@ export async function PUT(
       data: validation.data,
     });
 
+    revalidatePath("/admin/categories");
+    revalidatePath("/admin/products/new");
+    revalidatePath("/catalog");
+
     return NextResponse.json({
       success: true,
       category,
@@ -167,6 +172,10 @@ export async function DELETE(
     await prisma.category.delete({
       where: { id },
     });
+
+    revalidatePath("/admin/categories");
+    revalidatePath("/admin/products/new");
+    revalidatePath("/catalog");
 
     return NextResponse.json({
       success: true,

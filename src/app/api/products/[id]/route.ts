@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import { validateProductInput } from "../product-input";
@@ -60,6 +61,12 @@ export async function PUT(
       where: { id },
       select: {
         id: true,
+        slug: true,
+        brand: {
+          select: {
+            slug: true,
+          },
+        },
       },
     }),
     prisma.brand.findFirst({
@@ -69,6 +76,7 @@ export async function PUT(
       },
       select: {
         id: true,
+        slug: true,
       },
     }),
     validation.data.categoryId
@@ -136,6 +144,16 @@ export async function PUT(
     },
   });
 
+  revalidatePath("/admin/products");
+  revalidatePath("/admin/brands");
+  revalidatePath("/admin/categories");
+  revalidatePath("/catalog");
+  revalidatePath("/brands");
+  revalidatePath(`/brands/${existingProduct.brand.slug}`);
+  revalidatePath(`/brands/${brand.slug}`);
+  revalidatePath(`/product/${existingProduct.slug}`);
+  revalidatePath(`/product/${product.slug}`);
+
   return NextResponse.json(product);
 }
 
@@ -151,9 +169,24 @@ export async function DELETE(
 
   const { id } = await params;
 
-  await prisma.product.delete({
+  const product = await prisma.product.delete({
     where: { id },
+    include: {
+      brand: {
+        select: {
+          slug: true,
+        },
+      },
+    },
   });
+
+  revalidatePath("/admin/products");
+  revalidatePath("/admin/brands");
+  revalidatePath("/admin/categories");
+  revalidatePath("/catalog");
+  revalidatePath("/brands");
+  revalidatePath(`/brands/${product.brand.slug}`);
+  revalidatePath(`/product/${product.slug}`);
 
   return NextResponse.json({
     success: true,
