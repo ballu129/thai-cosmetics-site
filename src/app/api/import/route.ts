@@ -3,7 +3,6 @@ import path from "node:path";
 import { put } from "@vercel/blob";
 import JSZip from "jszip";
 import { NextResponse } from "next/server";
-import * as XLSX from "xlsx";
 import { revalidatePath } from "next/cache";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
@@ -60,6 +59,120 @@ function normalizeHeader(value: unknown) {
 
 function normalizeValue(value: unknown) {
   return String(value ?? "").trim();
+}
+
+function decodeXml(value: string) {
+  return value
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function readXmlTexts(xml: string) {
+  const texts: string[] = [];
+  const textPattern = /<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = textPattern.exec(xml)) !== null) {
+    texts.push(decodeXml(match[1]));
+  }
+
+  return texts.join("");
+}
+
+function getCellColumnIndex(cellReference: string) {
+  const columnLetters =
+    cellReference.match(/^[A-Z]+/i)?.[0].toUpperCase() ?? "";
+  let index = 0;
+
+  for (const letter of columnLetters) {
+    index =
+      index * 26 + letter.charCodeAt(0) - "A".charCodeAt(0) + 1;
+  }
+
+  return Math.max(index - 1, 0);
+}
+
+function readCellAttributes(cellXml: string) {
+  const attributes = new Map<string, string>();
+  const openingTag = cellXml.match(/^<c\s+([^>]*)>/)?.[1] ?? "";
+  const attributePattern = /([A-Za-z_:]+)="([^"]*)"/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = attributePattern.exec(openingTag)) !== null) {
+    attributes.set(match[1], decodeXml(match[2]));
+  }
+
+  return attributes;
+}
+
+async function parseXlsxRows(arrayBuffer: ArrayBuffer) {
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  const sheetFile = zip.file("xl/worksheets/sheet1.xml");
+
+  if (!sheetFile) {
+    throw new Error(
+      "В Excel-файле не найден первый лист.",
+    );
+  }
+
+  const sharedStringsXml =
+    await zip.file("xl/sharedStrings.xml")?.async("string");
+  const sharedStrings: string[] = [];
+
+  if (sharedStringsXml) {
+    const sharedStringPattern = /<si(?:\s[^>]*)?>[\s\S]*?<\/si>/g;
+    let sharedStringMatch: RegExpExecArray | null;
+
+    while (
+      (sharedStringMatch = sharedStringPattern.exec(
+        sharedStringsXml,
+      )) !== null
+    ) {
+      sharedStrings.push(readXmlTexts(sharedStringMatch[0]));
+    }
+  }
+
+  const sheetXml = await sheetFile.async("string");
+  const rows: string[][] = [];
+  const rowPattern = /<row(?:\s[^>]*)?>[\s\S]*?<\/row>/g;
+  let rowMatch: RegExpExecArray | null;
+
+  while ((rowMatch = rowPattern.exec(sheetXml)) !== null) {
+    const row: string[] = [];
+    const cellPattern = /<c(?:\s[^>]*)?>[\s\S]*?<\/c>/g;
+    let cellMatch: RegExpExecArray | null;
+
+    while (
+      (cellMatch = cellPattern.exec(rowMatch[0])) !== null
+    ) {
+      const cellXml = cellMatch[0];
+      const attributes = readCellAttributes(cellXml);
+      const columnIndex = getCellColumnIndex(
+        attributes.get("r") ?? "",
+      );
+      const type = attributes.get("t");
+      const value =
+        cellXml.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? "";
+
+      if (type === "s") {
+        row[columnIndex] =
+          sharedStrings[Number(value)] ?? "";
+      } else if (type === "inlineStr") {
+        row[columnIndex] = readXmlTexts(cellXml);
+      } else {
+        row[columnIndex] = decodeXml(value);
+      }
+    }
+
+    if (row.some((cell) => normalizeValue(cell))) {
+      rows.push(row);
+    }
+  }
+
+  return rows;
 }
 
 function parseCsv(text: string) {
@@ -183,28 +296,9 @@ async function readSpreadsheet(file: File) {
   }
 
   if (extension === "xlsx") {
-    const workbook = XLSX.read(arrayBuffer, {
-      type: "array",
-      cellDates: false,
-    });
-
-    const firstSheetName = workbook.SheetNames[0];
-
-    if (!firstSheetName) {
-      throw new Error("В Excel-файле нет листов.");
-    }
-
-    const sheet = workbook.Sheets[firstSheetName];
-    const rows = XLSX.utils.sheet_to_json<string[]>(
-      sheet,
-      {
-        header: 1,
-        defval: "",
-        raw: false,
-      },
+    return tableRowsToObjects(
+      await parseXlsxRows(arrayBuffer),
     );
-
-    return tableRowsToObjects(rows);
   }
 
   throw new Error(
