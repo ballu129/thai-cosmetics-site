@@ -1,6 +1,7 @@
 ﻿"use client";
 
-import { FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 
 type Brand = {
@@ -12,6 +13,36 @@ type Category = {
   id: string;
   name: string;
 };
+
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
+
+function getFileExtension(fileName: string) {
+  return fileName.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function validateImageFile(file: File) {
+  const extension = getFileExtension(file.name);
+
+  if (
+    !file.type.startsWith("image/") ||
+    !ALLOWED_IMAGE_EXTENSIONS.includes(extension)
+  ) {
+    return "Можно загружать только изображения JPG, PNG или WEBP.";
+  }
+
+  if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    return "Размер изображения не должен превышать 5 МБ.";
+  }
+
+  return null;
+}
+
+function createProductImagePathname(file: File) {
+  const extension = getFileExtension(file.name);
+
+  return `products/${crypto.randomUUID()}.${extension}`;
+}
 
 export default function NewProductForm({
   brands,
@@ -38,6 +69,29 @@ export default function NewProductForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  function handleImageChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0] ?? null;
+
+    if (!file) {
+      setImageFile(null);
+      return;
+    }
+
+    const validationError = validateImageFile(file);
+
+    if (validationError) {
+      setError(validationError);
+      event.target.value = "";
+      setImageFile(null);
+      return;
+    }
+
+    setError("");
+    setImageFile(file);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -47,24 +101,28 @@ export default function NewProductForm({
     try {
       let uploadedImageUrl = imageUrl.trim() || null;
 
-if (imageFile) {
-  const formData = new FormData();
-  formData.append("file", imageFile);
+      if (imageFile) {
+        try {
+          const blob = await upload(
+            createProductImagePathname(imageFile),
+            imageFile,
+            {
+              access: "public",
+              handleUploadUrl: "/api/upload",
+              contentType: imageFile.type,
+            },
+          );
 
-  const uploadResponse = await fetch("/api/upload", {
-    method: "POST",
-    body: formData,
-  });
-
-  const uploadData = await uploadResponse.json();
-
-  if (!uploadResponse.ok) {
-    setError(uploadData.error ?? "Не удалось загрузить изображение.");
-    return;
-  }
-
-  uploadedImageUrl = uploadData.imageUrl;
-}
+          uploadedImageUrl = blob.url;
+        } catch (uploadError) {
+          setError(
+            uploadError instanceof Error
+              ? `Не удалось загрузить изображение: ${uploadError.message}`
+              : "Не удалось загрузить изображение.",
+          );
+          return;
+        }
+      }
       const response = await fetch("/api/products", {
         method: "POST",
         headers: {
@@ -225,18 +283,7 @@ if (imageFile) {
           type="file"
           accept="image/*"
           disabled={saving}
-          onChange={(event) => {
-            const file = event.target.files?.[0] ?? null;
-
-            if (file && !file.type.startsWith("image/")) {
-              setError("Можно загружать только изображения.");
-              event.target.value = "";
-              setImageFile(null);
-              return;
-            }
-
-            setImageFile(file);
-          }}
+          onChange={handleImageChange}
           style={{
             display: "block",
             width: "100%",
