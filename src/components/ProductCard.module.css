@@ -17,12 +17,16 @@
 .image {
   position: relative;
   width: 100%;
-  height: 280px;
+  height: 260px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #f8f6f1;
   overflow: hidden;
+}
+
+.productImage {
+  object-fit: cover;
 }
 
 .body {
@@ -47,6 +51,11 @@
   margin-top: 12px;
   color: #555555;
   line-height: 1.6;
+  min-height: 4.8em;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .row {
@@ -75,7 +84,7 @@
 
 @media (max-width: 680px) {
   .image {
-    height: 240px;
+    height: 220px;
   }
 
   .row strong {

@@ -26,7 +26,7 @@ export default function ProductCard({
             alt={product.name}
             fill
             sizes="(max-width: 768px) 100vw, 33vw"
-            style={{ objectFit: "contain", padding: "12px" }}
+            className={styles.productImage}
           />
         ) : (
           <span>

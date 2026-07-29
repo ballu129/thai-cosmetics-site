@@ -126,7 +126,7 @@ export default function NewProductForm({
       const response = await fetch("/api/products", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/json; charset=utf-8",
         },
         body: JSON.stringify({
           name,
