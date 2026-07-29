@@ -33,20 +33,28 @@ export default async function AdminProductsPage() {
           </p>
         </div>
 
-        <Link
-          href="/admin/products/new"
+        <div
           style={{
-            display: "inline-block",
-            padding: "10px 16px",
-            border: "1px solid #777",
-            borderRadius: 6,
-            color: "inherit",
-            textDecoration: "none",
-            whiteSpace: "nowrap",
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
           }}
         >
-          Добавить товар
-        </Link>
+          <Link
+            href="/admin/import"
+            style={actionLinkStyle}
+          >
+            Импорт
+          </Link>
+
+          <Link
+            href="/admin/products/new"
+            style={actionLinkStyle}
+          >
+            Добавить товар
+          </Link>
+        </div>
       </div>
 
       <div style={{ overflowX: "auto" }}>
@@ -91,24 +99,29 @@ export default async function AdminProductsPage() {
                 </td>
 
                 <td style={cellStyle}>
-                 <div style={{ display: "flex", alignItems: "center" }}>
-  <Link
-    href={`/admin/products/${product.id}/edit`}
-    style={{
-      display: "inline-block",
-      padding: "7px 12px",
-      border: "1px solid #777",
-      borderRadius: 6,
-      color: "inherit",
-      textDecoration: "none",
-      whiteSpace: "nowrap",
-    }}
-  >
-    Редактировать
-  </Link>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Link
+                      href={`/admin/products/${product.id}/edit`}
+                      style={{
+                        display: "inline-block",
+                        padding: "7px 12px",
+                        border: "1px solid #777",
+                        borderRadius: 6,
+                        color: "inherit",
+                        textDecoration: "none",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Редактировать
+                    </Link>
 
-  <DeleteProductButton productId={product.id} />
-</div>
+                    <DeleteProductButton productId={product.id} />
+                  </div>
                 </td>
               </tr>
             ))}
@@ -118,6 +131,16 @@ export default async function AdminProductsPage() {
     </main>
   );
 }
+
+const actionLinkStyle = {
+  display: "inline-block",
+  padding: "10px 16px",
+  border: "1px solid #777",
+  borderRadius: 6,
+  color: "inherit",
+  textDecoration: "none",
+  whiteSpace: "nowrap",
+} as const;
 
 const cellStyle = {
   borderBottom: "1px solid #ddd",
