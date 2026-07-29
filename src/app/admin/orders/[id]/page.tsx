@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import PrintButton from "./PrintButton";
 
+export const dynamic = "force-dynamic";
+
 const statusNames = {
   NEW: "Новый",
   CONFIRMED: "Подтверждён",

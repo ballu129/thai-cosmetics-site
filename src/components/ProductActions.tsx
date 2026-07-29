@@ -25,11 +25,15 @@ export default function ProductActions({
   const [favorite, setFavorite] = useState(false);
 
   useEffect(() => {
-    const savedFavorites = JSON.parse(
-      localStorage.getItem("favoriteProducts") ?? "[]",
-    ) as string[];
+    const timeoutId = window.setTimeout(() => {
+      const savedFavorites = JSON.parse(
+        localStorage.getItem("favoriteProducts") ?? "[]",
+      ) as string[];
 
-    setFavorite(savedFavorites.includes(slug));
+      setFavorite(savedFavorites.includes(slug));
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [slug]);
 
   function addCurrentProductToCart() {

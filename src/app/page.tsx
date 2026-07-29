@@ -3,6 +3,8 @@ import ProductCard from "@/components/ProductCard";
 import { prisma } from "@/lib/prisma";
 import styles from "./page.module.css";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const databaseProducts = await prisma.product.findMany({
     include: {

@@ -4,6 +4,8 @@ import ProductGallery from "@/components/ProductGallery";
 import ProductActions from "@/components/ProductActions";
 import styles from "./ProductPage.module.css";
 
+export const dynamic = "force-dynamic";
+
 type ProductPageProps = {
   params: Promise<{
     slug: string;

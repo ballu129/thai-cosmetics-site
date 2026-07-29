@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 type BrandPageProps = {
   params: Promise<{
     slug: string;

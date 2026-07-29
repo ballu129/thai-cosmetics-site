@@ -38,21 +38,25 @@ export function CartProvider({
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const savedCart = window.localStorage.getItem(STORAGE_KEY);
+    const timeoutId = window.setTimeout(() => {
+      try {
+        const savedCart = window.localStorage.getItem(STORAGE_KEY);
 
-      if (savedCart) {
-        const parsedCart = JSON.parse(savedCart);
+        if (savedCart) {
+          const parsedCart = JSON.parse(savedCart);
 
-        if (Array.isArray(parsedCart)) {
-          setItems(parsedCart);
+          if (Array.isArray(parsedCart)) {
+            setItems(parsedCart);
+          }
         }
+      } catch {
+        window.localStorage.removeItem(STORAGE_KEY);
+      } finally {
+        setIsLoaded(true);
       }
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-    } finally {
-      setIsLoaded(true);
-    }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {

@@ -4,6 +4,8 @@ import ProductCard from "@/components/ProductCard";
 import { prisma } from "@/lib/prisma";
 import styles from "./Catalog.module.css";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Каталог тайской косметики",
   description:

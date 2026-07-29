@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import ProductCard from "@/components/ProductCard";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Каталог тайской косметики",
   description:
