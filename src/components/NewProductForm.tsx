@@ -2,6 +2,7 @@
 
 import { ChangeEvent, FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { isVercelBlobUrl } from "@/lib/blob-url";
 
 type Brand = {
   id: string;
@@ -112,7 +113,11 @@ export default function NewProductForm({
           const uploadData =
             (await uploadResponse.json()) as UploadResponse;
 
-          if (!uploadResponse.ok || !uploadData.imageUrl) {
+          if (
+            !uploadResponse.ok ||
+            !uploadData.imageUrl ||
+            !isVercelBlobUrl(uploadData.imageUrl)
+          ) {
             setError(
               uploadData.error ??
                 "Не удалось загрузить изображение.",
@@ -121,12 +126,8 @@ export default function NewProductForm({
           }
 
           uploadedImageUrl = uploadData.imageUrl;
-        } catch (uploadError) {
-          setError(
-            uploadError instanceof Error
-              ? `Не удалось загрузить изображение: ${uploadError.message}`
-              : "Не удалось загрузить изображение.",
-          );
+        } catch {
+          setError("Не удалось загрузить изображение.");
           return;
         }
       }

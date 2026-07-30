@@ -1,3 +1,5 @@
+import { isVercelBlobUrl } from "@/lib/blob-url";
+
 type ProductInput = {
   name: string;
   slug: string;
@@ -105,6 +107,19 @@ export function validateProductInput(
     };
   }
 
+  const imageUrl =
+    typeof body.imageUrl === "string"
+      ? body.imageUrl.trim()
+      : "";
+
+  if (imageUrl && !isVercelBlobUrl(imageUrl)) {
+    return {
+      success: false,
+      error:
+        "Изображение товара должно быть полной ссылкой Vercel Blob.",
+    };
+  }
+
   return {
     success: true,
     data: {
@@ -119,7 +134,7 @@ export function validateProductInput(
       activeIngredients: body.activeIngredients
         .map((ingredient) => ingredient.trim())
         .filter(Boolean),
-      imageUrl: body.imageUrl?.trim() || null,
+      imageUrl: imageUrl || null,
     },
   };
 }

@@ -6,6 +6,7 @@ import {
   BlobAuthConfigurationError,
   getBlobAuthOptions,
 } from "@/lib/blob-auth";
+import { isVercelBlobUrl } from "@/lib/blob-url";
 
 export const runtime = "nodejs";
 
@@ -77,6 +78,10 @@ async function handleServerUpload(request: Request) {
     ...getBlobAuthOptions(),
   });
 
+  if (!isVercelBlobUrl(blob.url)) {
+    throw new Error("Invalid Vercel Blob upload response.");
+  }
+
   return NextResponse.json({
     success: true,
     imageUrl: blob.url,
@@ -85,7 +90,7 @@ async function handleServerUpload(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    return handleServerUpload(request);
+    return await handleServerUpload(request);
   } catch (error) {
     console.error("Product image upload failed.");
     const message =

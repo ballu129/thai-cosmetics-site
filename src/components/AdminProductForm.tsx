@@ -3,6 +3,7 @@
 import { ChangeEvent, FormEvent, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { isVercelBlobUrl } from "@/lib/blob-url";
 
 type Brand = {
   id: string;
@@ -81,6 +82,8 @@ export default function AdminProductForm({
   const [imageUrl, setImageUrl] = useState(product.imageUrl ?? "");
 
   const [uploading, setUploading] = useState(false);
+  const [imageUploadFailed, setImageUploadFailed] =
+    useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -97,11 +100,13 @@ export default function AdminProductForm({
 
     if (validationError) {
       setError(validationError);
+      setImageUploadFailed(true);
       event.target.value = "";
       return;
     }
 
     setUploading(true);
+    setImageUploadFailed(false);
     setError("");
 
     try {
@@ -115,21 +120,24 @@ export default function AdminProductForm({
       const uploadData =
         (await uploadResponse.json()) as UploadResponse;
 
-      if (!uploadResponse.ok || !uploadData.imageUrl) {
+      if (
+        !uploadResponse.ok ||
+        !uploadData.imageUrl ||
+        !isVercelBlobUrl(uploadData.imageUrl)
+      ) {
         setError(
           uploadData.error ??
             "Не удалось загрузить изображение.",
         );
+        setImageUploadFailed(true);
         return;
       }
 
       setImageUrl(uploadData.imageUrl);
-    } catch (uploadError) {
-      setError(
-        uploadError instanceof Error
-          ? `Не удалось загрузить изображение: ${uploadError.message}`
-          : "Не удалось загрузить изображение.",
-      );
+      setImageUploadFailed(false);
+    } catch {
+      setImageUploadFailed(true);
+      setError("Не удалось загрузить изображение.");
     } finally {
       setUploading(false);
       event.target.value = "";
@@ -143,6 +151,13 @@ export default function AdminProductForm({
     setError("");
 
     try {
+      if (imageUploadFailed) {
+        setError(
+          "Новое изображение не было загружено. Повторите загрузку файла перед сохранением.",
+        );
+        return;
+      }
+
       const response = await fetch(`/api/products/${product.id}`, {
         method: "PUT",
         headers: {
