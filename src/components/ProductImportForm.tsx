@@ -2,27 +2,60 @@
 
 import { FormEvent, useState } from "react";
 
-type ImportError = {
+type ImportRowStatus = "created" | "updated" | "skipped" | "error";
+
+type ImportRowResult = {
   row: number;
-  name?: string;
+  slug: string;
+  name: string;
+  status: ImportRowStatus;
   errors: string[];
 };
 
 type ImportReport = {
-  imported: number;
+  dryRun: boolean;
+  totalRows: number;
+  created: number;
   updated: number;
-  errors: ImportError[];
+  skipped: number;
+  errors: ImportRowResult[];
+  rows: ImportRowResult[];
 };
 
+const statusLabels: Record<ImportRowStatus, string> = {
+  created: "Будет создан",
+  updated: "Будет обновлён",
+  skipped: "Пропущен",
+  error: "Ошибка",
+};
+
+function getStatusLabel(status: ImportRowStatus, dryRun: boolean) {
+  if (dryRun) {
+    return statusLabels[status];
+  }
+
+  if (status === "created") {
+    return "Создан";
+  }
+
+  if (status === "updated") {
+    return "Обновлён";
+  }
+
+  return statusLabels[status];
+}
+
 export default function ProductImportForm() {
-  const [spreadsheet, setSpreadsheet] =
-    useState<File | null>(null);
-  const [imagesZip, setImagesZip] =
-    useState<File | null>(null);
+  const [spreadsheet, setSpreadsheet] = useState<File | null>(
+    null,
+  );
+  const [imagesZip, setImagesZip] = useState<File | null>(null);
+  const [dryRun, setDryRun] = useState(true);
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState("");
-  const [report, setReport] =
-    useState<ImportReport | null>(null);
+  const [report, setReport] = useState<ImportReport | null>(
+    null,
+  );
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -36,6 +69,7 @@ export default function ProductImportForm() {
 
     const formData = new FormData();
     formData.append("spreadsheet", spreadsheet);
+    formData.append("dryRun", String(dryRun));
 
     if (imagesZip) {
       formData.append("imagesZip", imagesZip);
@@ -52,18 +86,25 @@ export default function ProductImportForm() {
       });
       const data = await response.json();
 
+      if (data.rows) {
+        setReport({
+          dryRun: data.dryRun ?? dryRun,
+          totalRows: data.totalRows ?? 0,
+          created: data.created ?? 0,
+          updated: data.updated ?? 0,
+          skipped: data.skipped ?? 0,
+          errors: data.errors ?? [],
+          rows: data.rows ?? [],
+        });
+      }
+
       if (!response.ok) {
         setError(
-          data.error ?? "Не удалось выполнить импорт.",
+          data.error ??
+            "Файл не прошёл проверку. Исправьте ошибки и повторите загрузку.",
         );
         return;
       }
-
-      setReport({
-        imported: data.imported ?? 0,
-        updated: data.updated ?? 0,
-        errors: data.errors ?? [],
-      });
     } catch {
       setError("Не удалось выполнить импорт.");
     } finally {
@@ -104,9 +145,7 @@ export default function ProductImportForm() {
             required
             disabled={importing}
             onChange={(event) =>
-              setSpreadsheet(
-                event.target.files?.[0] ?? null,
-              )
+              setSpreadsheet(event.target.files?.[0] ?? null)
             }
             style={{
               display: "block",
@@ -135,6 +174,24 @@ export default function ProductImportForm() {
           />
         </label>
 
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={dryRun}
+            disabled={importing}
+            onChange={(event) =>
+              setDryRun(event.target.checked)
+            }
+          />
+          Только предварительная проверка без записи в базу и Blob
+        </label>
+
         <button
           type="submit"
           disabled={importing}
@@ -144,14 +201,18 @@ export default function ProductImportForm() {
             cursor: importing ? "default" : "pointer",
           }}
         >
-          {importing ? "Импорт..." : "Импортировать товары"}
+          {importing
+            ? dryRun
+              ? "Проверка..."
+              : "Импорт..."
+            : dryRun
+              ? "Проверить импорт"
+              : "Импортировать товары"}
         </button>
       </form>
 
       {error && (
-        <p style={{ color: "red", marginTop: 20 }}>
-          {error}
-        </p>
+        <p style={{ color: "red", marginTop: 20 }}>{error}</p>
       )}
 
       {report && (
@@ -164,33 +225,87 @@ export default function ProductImportForm() {
             background: "#fff",
           }}
         >
-          <h2 style={{ marginTop: 0 }}>Отчёт импорта</h2>
+          <h2 style={{ marginTop: 0 }}>
+            {report.dryRun
+              ? "Отчёт предварительной проверки"
+              : "Отчёт импорта"}
+          </h2>
 
           <p style={{ margin: "8px 0" }}>
-            Импортировано: {report.imported}
+            Всего строк: {report.totalRows}
           </p>
 
           <p style={{ margin: "8px 0" }}>
-            Обновлено: {report.updated}
+            {report.dryRun ? "Будет создано" : "Создано"}:{" "}
+            {report.created}
+          </p>
+
+          <p style={{ margin: "8px 0" }}>
+            {report.dryRun ? "Будет обновлено" : "Обновлено"}:{" "}
+            {report.updated}
+          </p>
+
+          <p style={{ margin: "8px 0" }}>
+            Пропущено: {report.skipped}
           </p>
 
           <p style={{ margin: "8px 0" }}>
             Строк с ошибками: {report.errors.length}
           </p>
 
-          {report.errors.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <h3>Ошибки</h3>
-
-              <ul>
-                {report.errors.map((item) => (
-                  <li key={`${item.row}-${item.name ?? ""}`}>
-                    Строка {item.row}
-                    {item.name ? `, ${item.name}` : ""}:{" "}
-                    {item.errors.join(" ")}
-                  </li>
-                ))}
-              </ul>
+          {report.rows.length > 0 && (
+            <div style={{ marginTop: 16, overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 14,
+                }}
+              >
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", padding: 8 }}>
+                      Строка
+                    </th>
+                    <th style={{ textAlign: "left", padding: 8 }}>
+                      Slug
+                    </th>
+                    <th style={{ textAlign: "left", padding: 8 }}>
+                      Название
+                    </th>
+                    <th style={{ textAlign: "left", padding: 8 }}>
+                      Статус
+                    </th>
+                    <th style={{ textAlign: "left", padding: 8 }}>
+                      Ошибка
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.rows.map((item) => (
+                    <tr key={`${item.row}-${item.slug}`}>
+                      <td style={{ padding: 8 }}>{item.row}</td>
+                      <td style={{ padding: 8 }}>
+                        {item.slug || "—"}
+                      </td>
+                      <td style={{ padding: 8 }}>
+                        {item.name || "—"}
+                      </td>
+                      <td style={{ padding: 8 }}>
+                        {getStatusLabel(
+                          item.status,
+                          report.dryRun,
+                        )}
+                      </td>
+                      <td style={{ padding: 8 }}>
+                        {item.errors.length > 0
+                          ? item.errors.join(" ")
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </section>

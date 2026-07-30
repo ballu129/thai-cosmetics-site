@@ -1,27 +1,14 @@
 import JSZip from "jszip";
 import { NextResponse } from "next/server";
+import { IMPORT_COLUMNS } from "@/lib/import/columns";
 
 export const runtime = "nodejs";
-
-const headers = [
-  "Бренд",
-  "Категория",
-  "Название",
-  "Цена",
-  "Краткое описание",
-  "Полное описание",
-  "Активные ингредиенты",
-  "Способ применения",
-  "Меры предосторожности",
-  "Состав",
-  "Лечебный товар (да/нет)",
-  "Имя изображения",
-];
 
 const exampleRow = [
   "Wang Prom",
   "Лечебная косметика",
   "Wang Prom Herbal Balm",
+  "wang-prom-herbal-balm",
   "690",
   "Краткое описание товара для карточки каталога.",
   "Подробное описание товара для страницы товара.",
@@ -31,6 +18,7 @@ const exampleRow = [
   "Ментол, камфора, травяные экстракты, вазелиновая основа.",
   "да",
   "wang-prom-herbal-balm.png",
+  "нет",
 ];
 
 function escapeXml(value: string) {
@@ -125,7 +113,7 @@ async function createTemplateXlsx() {
 
   zip.file(
     "xl/worksheets/sheet1.xml",
-    createSheetXml([headers, exampleRow]),
+    createSheetXml([[...IMPORT_COLUMNS], exampleRow]),
   );
 
   return zip.generateAsync({
@@ -144,7 +132,7 @@ export async function GET() {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition":
-        "attachment; filename=\"product-import-template.xlsx\"",
+        "attachment; filename=\"siam-care-import-template.xlsx\"",
     },
   });
 }

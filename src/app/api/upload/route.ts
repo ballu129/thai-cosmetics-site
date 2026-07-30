@@ -21,6 +21,18 @@ const allowedImageExtensions = ["jpg", "jpeg", "png", "webp"];
 const safeProductImagePathPattern =
   /^products\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|jpeg|png|webp)$/;
 
+function getBlobReadWriteToken() {
+  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+
+  if (!token) {
+    throw new Error(
+      "Не настроен BLOB_READ_WRITE_TOKEN для загрузки изображений в Vercel Blob.",
+    );
+  }
+
+  return token;
+}
+
 function getFileExtension(fileName: string) {
   return fileName.split(".").pop()?.toLowerCase() ?? "";
 }
@@ -52,6 +64,7 @@ async function handleClientUpload(request: Request) {
   const jsonResponse = await handleUpload({
     body,
     request,
+    token: getBlobReadWriteToken(),
     onBeforeGenerateToken: async (pathname) => {
       if (!isSafeProductImagePath(pathname)) {
         throw new Error("Некорректное имя файла изображения.");
@@ -114,6 +127,7 @@ async function handleServerUpload(request: Request) {
     access: "public",
     addRandomSuffix: false,
     contentType: file.type,
+    token: getBlobReadWriteToken(),
   });
 
   return NextResponse.json({
