@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { put } from "@vercel/blob";
 import JSZip from "jszip";
+import {
+  BlobAuthConfigurationError,
+  getBlobAuthOptions,
+} from "@/lib/blob-auth";
 
 export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -13,18 +17,6 @@ export const IMAGE_CONTENT_TYPES = new Map([
 ]);
 
 export type ImportImageArchive = Map<string, JSZip.JSZipObject>;
-
-function getBlobReadWriteToken() {
-  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-
-  if (!token) {
-    throw new Error(
-      "Не настроен BLOB_READ_WRITE_TOKEN для загрузки изображений в Vercel Blob.",
-    );
-  }
-
-  return token;
-}
 
 export function getFileExtension(fileName: string) {
   return path
@@ -137,16 +129,26 @@ export async function uploadImportImage(
     );
   }
 
-  const blob = await put(
-    `products/${randomUUID()}.${extension}`,
-    buffer,
-    {
-      access: "public",
-      addRandomSuffix: false,
-      contentType,
-      token: getBlobReadWriteToken(),
-    },
-  );
+  try {
+    const blob = await put(
+      `products/${randomUUID()}.${extension}`,
+      buffer,
+      {
+        access: "public",
+        addRandomSuffix: false,
+        contentType,
+        ...getBlobAuthOptions(),
+      },
+    );
 
-  return blob.url;
+    return blob.url;
+  } catch (error) {
+    if (error instanceof BlobAuthConfigurationError) {
+      throw error;
+    }
+
+    throw new Error(
+      "Не удалось загрузить изображение в Vercel Blob.",
+    );
+  }
 }

@@ -2,7 +2,6 @@
 
 import { ChangeEvent, FormEvent, useState } from "react";
 import Image from "next/image";
-import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 
 type Brand = {
@@ -28,6 +27,12 @@ type ProductData = {
   imageUrl: string;
 };
 
+type UploadResponse = {
+  success?: boolean;
+  imageUrl?: string;
+  error?: string;
+};
+
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
 
@@ -50,12 +55,6 @@ function validateImageFile(file: File) {
   }
 
   return null;
-}
-
-function createProductImagePathname(file: File) {
-  const extension = getFileExtension(file.name);
-
-  return `products/${crypto.randomUUID()}.${extension}`;
 }
 
 export default function AdminProductForm({
@@ -106,17 +105,25 @@ export default function AdminProductForm({
     setError("");
 
     try {
-      const blob = await upload(
-        createProductImagePathname(file),
-        file,
-        {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-          contentType: file.type,
-        },
-      );
+      const formData = new FormData();
+      formData.append("file", file);
 
-      setImageUrl(blob.url);
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const uploadData =
+        (await uploadResponse.json()) as UploadResponse;
+
+      if (!uploadResponse.ok || !uploadData.imageUrl) {
+        setError(
+          uploadData.error ??
+            "Не удалось загрузить изображение.",
+        );
+        return;
+      }
+
+      setImageUrl(uploadData.imageUrl);
     } catch (uploadError) {
       setError(
         uploadError instanceof Error

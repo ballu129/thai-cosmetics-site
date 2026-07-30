@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import { ChangeEvent, FormEvent, useState } from "react";
-import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 
 type Brand = {
@@ -12,6 +11,12 @@ type Brand = {
 type Category = {
   id: string;
   name: string;
+};
+
+type UploadResponse = {
+  success?: boolean;
+  imageUrl?: string;
+  error?: string;
 };
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -36,12 +41,6 @@ function validateImageFile(file: File) {
   }
 
   return null;
-}
-
-function createProductImagePathname(file: File) {
-  const extension = getFileExtension(file.name);
-
-  return `products/${crypto.randomUUID()}.${extension}`;
 }
 
 export default function NewProductForm({
@@ -103,17 +102,25 @@ export default function NewProductForm({
 
       if (imageFile) {
         try {
-          const blob = await upload(
-            createProductImagePathname(imageFile),
-            imageFile,
-            {
-              access: "public",
-              handleUploadUrl: "/api/upload",
-              contentType: imageFile.type,
-            },
-          );
+          const formData = new FormData();
+          formData.append("file", imageFile);
 
-          uploadedImageUrl = blob.url;
+          const uploadResponse = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+          const uploadData =
+            (await uploadResponse.json()) as UploadResponse;
+
+          if (!uploadResponse.ok || !uploadData.imageUrl) {
+            setError(
+              uploadData.error ??
+                "Не удалось загрузить изображение.",
+            );
+            return;
+          }
+
+          uploadedImageUrl = uploadData.imageUrl;
         } catch (uploadError) {
           setError(
             uploadError instanceof Error

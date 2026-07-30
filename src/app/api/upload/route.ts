@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { put } from "@vercel/blob";
-import {
-  handleUpload,
-  type HandleUploadBody,
-} from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-auth";
+import {
+  BlobAuthConfigurationError,
+  getBlobAuthOptions,
+} from "@/lib/blob-auth";
 
 export const runtime = "nodejs";
 
@@ -18,20 +18,6 @@ const allowedImageTypes = new Map([
 ]);
 
 const allowedImageExtensions = ["jpg", "jpeg", "png", "webp"];
-const safeProductImagePathPattern =
-  /^products\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|jpeg|png|webp)$/;
-
-function getBlobReadWriteToken() {
-  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-
-  if (!token) {
-    throw new Error(
-      "Не настроен BLOB_READ_WRITE_TOKEN для загрузки изображений в Vercel Blob.",
-    );
-  }
-
-  return token;
-}
 
 function getFileExtension(fileName: string) {
   return fileName.split(".").pop()?.toLowerCase() ?? "";
@@ -44,45 +30,6 @@ function isAllowedImage(file: File) {
     allowedImageTypes.has(file.type) &&
     allowedImageExtensions.includes(extension)
   );
-}
-
-function isSafeProductImagePath(pathname: string) {
-  return safeProductImagePathPattern.test(pathname);
-}
-
-async function handleClientUpload(request: Request) {
-  const body = (await request.json()) as HandleUploadBody;
-
-  if (body.type === "blob.generate-client-token") {
-    const unauthorizedResponse = await requireAdminSession();
-
-    if (unauthorizedResponse) {
-      return unauthorizedResponse;
-    }
-  }
-
-  const jsonResponse = await handleUpload({
-    body,
-    request,
-    token: getBlobReadWriteToken(),
-    onBeforeGenerateToken: async (pathname) => {
-      if (!isSafeProductImagePath(pathname)) {
-        throw new Error("Некорректное имя файла изображения.");
-      }
-
-      return {
-        allowedContentTypes: Array.from(allowedImageTypes.keys()),
-        maximumSizeInBytes: MAX_FILE_SIZE_BYTES,
-        addRandomSuffix: false,
-        tokenPayload: JSON.stringify({ pathname }),
-      };
-    },
-    onUploadCompleted: async ({ blob }) => {
-      console.log("Product image uploaded", blob.url);
-    },
-  });
-
-  return NextResponse.json(jsonResponse);
 }
 
 async function handleServerUpload(request: Request) {
@@ -127,7 +74,7 @@ async function handleServerUpload(request: Request) {
     access: "public",
     addRandomSuffix: false,
     contentType: file.type,
-    token: getBlobReadWriteToken(),
+    ...getBlobAuthOptions(),
   });
 
   return NextResponse.json({
@@ -138,22 +85,17 @@ async function handleServerUpload(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const contentType = request.headers.get("content-type") ?? "";
-
-    if (contentType.includes("application/json")) {
-      return handleClientUpload(request);
-    }
-
     return handleServerUpload(request);
   } catch (error) {
-    console.error(error);
+    console.error("Product image upload failed.");
+    const message =
+      error instanceof BlobAuthConfigurationError
+        ? error.message
+        : "Не удалось загрузить файл.";
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Не удалось загрузить файл.",
+        error: message,
       },
       { status: 400 },
     );
