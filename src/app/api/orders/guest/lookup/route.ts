@@ -2,9 +2,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   buildGuestOrderPath,
-  generateOrderAccessToken,
-  hashOrderAccessToken,
-  hashOrderLookupEmail,
+  createGuestOrderAccessToken,
   normalizeOrderLookupEmail,
 } from "@/lib/order-access";
 import { prisma } from "@/lib/prisma";
@@ -15,10 +13,7 @@ export const runtime = "nodejs";
 const GENERIC_LOOKUP_ERROR =
   "Заказ не найден. Проверьте номер заказа и email.";
 
-function readString(
-  body: Record<string, unknown>,
-  field: string,
-) {
+function readString(body: Record<string, unknown>, field: string) {
   const value = body[field];
 
   return typeof value === "string" ? value.trim() : "";
@@ -78,20 +73,14 @@ export async function POST(request: Request) {
     where: {
       id: orderId,
       userId: null,
-      OR: [
-        {
-          email: {
-            equals: email,
-            mode: "insensitive",
-          },
-        },
-        {
-          guestLookupEmailHash: hashOrderLookupEmail(orderId, email),
-        },
-      ],
+      email: {
+        equals: email,
+        mode: "insensitive",
+      },
     },
     select: {
       id: true,
+      email: true,
     },
   });
 
@@ -102,16 +91,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const token = generateOrderAccessToken();
-
-  await prisma.order.update({
-    where: {
-      id: order.id,
-    },
-    data: {
-      guestAccessTokenHash: hashOrderAccessToken(token),
-    },
-  });
+  const token = createGuestOrderAccessToken(order.id, order.email);
 
   return NextResponse.json({
     success: true,

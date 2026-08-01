@@ -19,6 +19,10 @@ export async function PATCH(
     const order = await prisma.order.update({
       where: { id },
       data: { status },
+      select: {
+        id: true,
+        status: true,
+      },
     });
 
     return NextResponse.json({

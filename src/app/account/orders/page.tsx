@@ -30,8 +30,24 @@ export default async function OrdersPage() {
     where: {
       userId: session.user.id,
     },
-    include: {
-      items: true,
+    select: {
+      id: true,
+      customerName: true,
+      phone: true,
+      email: true,
+      address: true,
+      totalAmount: true,
+      status: true,
+      createdAt: true,
+      items: {
+        select: {
+          id: true,
+          productName: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+        },
+      },
     },
     orderBy: {
       createdAt: "desc",

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { hashOrderAccessToken } from "@/lib/order-access";
+import { verifyGuestOrderAccessToken } from "@/lib/order-access";
 import { prisma } from "@/lib/prisma";
 import PrintButton from "./PrintButton";
 
@@ -34,9 +34,9 @@ export default async function GuestOrderPage({
 }: GuestOrderPageProps) {
   const { id } = await params;
   const { token = "" } = await searchParams;
-  const normalizedToken = token.trim();
+  const verifiedToken = verifyGuestOrderAccessToken(token, id);
 
-  if (!normalizedToken) {
+  if (!verifiedToken) {
     notFound();
   }
 
@@ -44,10 +44,28 @@ export default async function GuestOrderPage({
     where: {
       id,
       userId: null,
-      guestAccessTokenHash: hashOrderAccessToken(normalizedToken),
+      email: {
+        equals: verifiedToken.email,
+        mode: "insensitive",
+      },
     },
-    include: {
-      items: true,
+    select: {
+      id: true,
+      customerName: true,
+      city: true,
+      address: true,
+      totalAmount: true,
+      status: true,
+      createdAt: true,
+      items: {
+        select: {
+          id: true,
+          productName: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+        },
+      },
     },
   });
 
@@ -67,10 +85,6 @@ export default async function GuestOrderPage({
     {
       label: "Адрес доставки",
       value: order.address,
-    },
-    {
-      label: "Комментарий",
-      value: order.customerComment,
     },
   ].filter((field) => field.value?.trim());
 
@@ -134,9 +148,7 @@ export default async function GuestOrderPage({
             marginBottom: 24,
           }}
         >
-          <Link href="/catalog">
-            ← Вернуться в каталог
-          </Link>
+          <Link href="/catalog">← Вернуться в каталог</Link>
 
           <PrintButton />
         </div>
@@ -184,17 +196,11 @@ export default async function GuestOrderPage({
               >
                 <strong>{item.productName}</strong>
 
-                <div>
-                  Количество: {item.quantity}
-                </div>
+                <div>Количество: {item.quantity}</div>
 
-                <div>
-                  Цена: {formatCurrency(item.unitPrice)}
-                </div>
+                <div>Цена: {formatCurrency(item.unitPrice)}</div>
 
-                <div>
-                  Итого: {formatCurrency(item.lineTotal)}
-                </div>
+                <div>Итого: {formatCurrency(item.lineTotal)}</div>
               </div>
             ))}
           </section>

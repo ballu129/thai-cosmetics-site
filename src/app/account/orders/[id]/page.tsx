@@ -43,8 +43,26 @@ export default async function OrderPage({ params }: OrderPageProps) {
       id,
       userId: session.user.id,
     },
-    include: {
-      items: true,
+    select: {
+      id: true,
+      customerName: true,
+      phone: true,
+      email: true,
+      country: true,
+      city: true,
+      address: true,
+      totalAmount: true,
+      status: true,
+      createdAt: true,
+      items: {
+        select: {
+          id: true,
+          productName: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+        },
+      },
     },
   });
 

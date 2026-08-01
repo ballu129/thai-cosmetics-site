@@ -1,11 +1,11 @@
-﻿import { NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
+import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { auth } from "@/lib/auth";
 import {
+  assertGuestOrderAccessConfigured,
   buildGuestOrderPath,
-  generateOrderAccessToken,
-  hashOrderLookupEmail,
-  hashOrderAccessToken,
+  createGuestOrderAccessToken,
 } from "@/lib/order-access";
 import { prisma } from "@/lib/prisma";
 
@@ -73,6 +73,10 @@ function calculateOrderTotal(
 
 function cleanText(value: string) {
   return value.trim();
+}
+
+function createDatabaseId() {
+  return `cm${randomBytes(16).toString("hex")}`;
 }
 
 export async function POST(request: Request) {
@@ -151,9 +155,7 @@ export async function POST(request: Request) {
       products.map((product) => [product.slug, product]),
     );
 
-    if (
-      requestedSlugs.some((slug) => !productsBySlug.has(slug))
-    ) {
+    if (requestedSlugs.some((slug) => !productsBySlug.has(slug))) {
       return NextResponse.json(
         {
           success: false,
@@ -198,51 +200,85 @@ export async function POST(request: Request) {
 
     const totalPrice = calculateOrderTotal(orderItems);
     const isGuestOrder = !session?.user?.id;
-    const guestAccessToken = isGuestOrder
-      ? generateOrderAccessToken()
-      : null;
 
-    const order = await prisma.order.create({
-      data: {
-        customerName: fullName,
-        phone,
-        email,
-        address,
-        country: "",
-        city: "",
-        customerComment: cleanText(body.customer.comment ?? "") || null,
-        totalAmount: totalPrice,
-        userId: session?.user?.id ?? null,
-        guestAccessTokenHash: guestAccessToken
-          ? hashOrderAccessToken(guestAccessToken)
-          : null,
+    if (isGuestOrder) {
+      assertGuestOrderAccessConfigured();
+    }
 
-        items: {
-          create: orderItems,
-        },
-      },
-      include: {
-        items: true,
-      },
+    const order = {
+      id: createDatabaseId(),
+    };
+
+    await prisma.$transaction(async (tx) => {
+      const now = new Date();
+
+      await tx.$executeRaw`
+        INSERT INTO "Order" (
+          "id",
+          "customerName",
+          "phone",
+          "email",
+          "country",
+          "city",
+          "address",
+          "totalAmount",
+          "status",
+          "createdAt",
+          "updatedAt",
+          "userId"
+        )
+        VALUES (
+          ${order.id},
+          ${fullName},
+          ${phone},
+          ${email},
+          ${""},
+          ${""},
+          ${address},
+          ${totalPrice},
+          'NEW'::"OrderStatus",
+          ${now},
+          ${now},
+          ${session?.user?.id ?? null}
+        )
+      `;
+
+      for (const item of orderItems) {
+        await tx.$executeRaw`
+          INSERT INTO "OrderItem" (
+            "id",
+            "productSlug",
+            "productName",
+            "unitPrice",
+            "quantity",
+            "lineTotal",
+            "orderId",
+            "createdAt"
+          )
+          VALUES (
+            ${createDatabaseId()},
+            ${item.productSlug},
+            ${item.productName},
+            ${item.unitPrice},
+            ${item.quantity},
+            ${item.lineTotal},
+            ${order.id},
+            ${now}
+          )
+        `;
+      }
     });
 
-    if (guestAccessToken) {
-      await prisma.order.update({
-        where: {
-          id: order.id,
-        },
-        data: {
-          guestLookupEmailHash: hashOrderLookupEmail(order.id, email),
-        },
-      });
-    }
+    const orderAccessToken = isGuestOrder
+      ? createGuestOrderAccessToken(order.id, email)
+      : null;
 
     return NextResponse.json({
       success: true,
       orderId: order.id,
       isGuestOrder,
-      orderAccessUrl: guestAccessToken
-        ? buildGuestOrderPath(order.id, guestAccessToken)
+      orderAccessUrl: orderAccessToken
+        ? buildGuestOrderPath(order.id, orderAccessToken)
         : "/account/orders",
     });
   } catch (error) {
@@ -260,7 +296,6 @@ export async function POST(request: Request) {
   }
 }
 
-
 export async function GET() {
   try {
     const unauthorizedResponse = await requireAdminSession();
@@ -270,8 +305,25 @@ export async function GET() {
     }
 
     const orders = await prisma.order.findMany({
-      include: {
-        items: true,
+      select: {
+        id: true,
+        customerName: true,
+        phone: true,
+        email: true,
+        address: true,
+        totalAmount: true,
+        status: true,
+        createdAt: true,
+        items: {
+          select: {
+            id: true,
+            productSlug: true,
+            productName: true,
+            quantity: true,
+            unitPrice: true,
+            lineTotal: true,
+          },
+        },
         user: {
           select: {
             id: true,
