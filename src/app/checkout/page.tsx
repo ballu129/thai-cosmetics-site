@@ -28,6 +28,8 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState("");
+  const [orderAccessUrl, setOrderAccessUrl] = useState("");
+  const [isGuestOrder, setIsGuestOrder] = useState(false);
   const [error, setError] = useState("");
 
   const totalPrice = useMemo(() => {
@@ -51,6 +53,8 @@ export default function CheckoutPage() {
     event.preventDefault();
     setError("");
     setCreatedOrderId("");
+    setOrderAccessUrl("");
+    setIsGuestOrder(false);
 
     if (
       !form.fullName.trim() ||
@@ -102,6 +106,12 @@ export default function CheckoutPage() {
 
       clearCart();
       setCreatedOrderId(result.orderId);
+      setOrderAccessUrl(
+        typeof result.orderAccessUrl === "string"
+          ? result.orderAccessUrl
+          : "/account/orders",
+      );
+      setIsGuestOrder(Boolean(result.isGuestOrder));
       setForm(initialForm);
       setIsSuccess(true);
     } catch (submitError) {
@@ -130,8 +140,27 @@ export default function CheckoutPage() {
               Номер заказа: {createdOrderId}
             </p>
 
-            <Link className={styles.button} href="/account/orders">
-              Перейти к моим заказам
+            {isGuestOrder ? (
+              <>
+                <p className={styles.text}>
+                  Заказ оформлен без регистрации. Вы можете открыть его
+                  по защищённой ссылке ниже без логина и пароля.
+                </p>
+
+                <p className={styles.text}>
+                  Чтобы в будущем видеть все заказы в личном кабинете,
+                  создайте аккаунт или войдите перед оформлением.
+                </p>
+              </>
+            ) : null}
+
+            <Link
+              className={styles.button}
+              href={orderAccessUrl || "/account/orders"}
+            >
+              {isGuestOrder
+                ? "Посмотреть заказ"
+                : "Перейти к моим заказам"}
             </Link>
           </div>
         </section>

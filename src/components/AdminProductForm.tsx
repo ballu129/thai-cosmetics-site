@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { isVercelBlobUrl } from "@/lib/blob-url";
@@ -68,6 +68,7 @@ export default function AdminProductForm({
   product: ProductData;
 }) {
   const router = useRouter();
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(product.name);
   const [slug, setSlug] = useState(product.slug);
@@ -80,68 +81,83 @@ export default function AdminProductForm({
     product.activeIngredients.join(", "),
   );
   const [imageUrl, setImageUrl] = useState(product.imageUrl ?? "");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [
+    imageUrlEditedAfterFileSelection,
+    setImageUrlEditedAfterFileSelection,
+  ] = useState(false);
 
-  const [uploading, setUploading] = useState(false);
-  const [imageUploadFailed, setImageUploadFailed] =
-    useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [uploadError, setUploadError] = useState("");
 
-  async function handleImageUpload(
+  function handleImageChange(
     event: ChangeEvent<HTMLInputElement>,
   ) {
-    const file = event.target.files?.[0];
+    const file = event.target.files?.[0] ?? null;
 
     if (!file) {
+      setImageFile(null);
       return;
     }
 
     const validationError = validateImageFile(file);
 
     if (validationError) {
-      setError(validationError);
-      setImageUploadFailed(true);
+      setUploadError(validationError);
       event.target.value = "";
+      setImageFile(null);
       return;
     }
 
-    setUploading(true);
-    setImageUploadFailed(false);
-    setError("");
+    setUploadError("");
+    setImageFile(file);
+    setImageUrlEditedAfterFileSelection(false);
+  }
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+  function handleImageUrlChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    setImageUrl(event.target.value);
+    setImageUrlEditedAfterFileSelection(true);
 
-      const uploadResponse = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const uploadData =
-        (await uploadResponse.json()) as UploadResponse;
-
-      if (
-        !uploadResponse.ok ||
-        !uploadData.imageUrl ||
-        !isVercelBlobUrl(uploadData.imageUrl)
-      ) {
-        setError(
-          uploadData.error ??
-            "Не удалось загрузить изображение.",
-        );
-        setImageUploadFailed(true);
-        return;
-      }
-
-      setImageUrl(uploadData.imageUrl);
-      setImageUploadFailed(false);
-    } catch {
-      setImageUploadFailed(true);
-      setError("Не удалось загрузить изображение.");
-    } finally {
-      setUploading(false);
-      event.target.value = "";
+    if (event.target.value.trim()) {
+      setUploadError("");
     }
+  }
+
+  function clearSelectedImageFile() {
+    setImageFile(null);
+    setUploadError("");
+    setImageUrlEditedAfterFileSelection(true);
+
+    if (imageFileInputRef.current) {
+      imageFileInputRef.current.value = "";
+    }
+  }
+
+  async function uploadSelectedImage(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const uploadResponse = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+    const uploadData =
+      (await uploadResponse.json()) as UploadResponse;
+
+    if (
+      !uploadResponse.ok ||
+      !uploadData.imageUrl ||
+      !isVercelBlobUrl(uploadData.imageUrl)
+    ) {
+      throw new Error(
+        uploadData.error ?? "Не удалось загрузить изображение.",
+      );
+    }
+
+    return uploadData.imageUrl;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -149,13 +165,25 @@ export default function AdminProductForm({
 
     setSaving(true);
     setError("");
+    setUploadError("");
 
     try {
-      if (imageUploadFailed) {
-        setError(
-          "Новое изображение не было загружено. Повторите загрузку файла перед сохранением.",
-        );
-        return;
+      let nextImageUrl = imageUrl.trim() || null;
+      const shouldUploadImage =
+        imageFile &&
+        (!nextImageUrl || !imageUrlEditedAfterFileSelection);
+
+      if (shouldUploadImage) {
+        try {
+          nextImageUrl = await uploadSelectedImage(imageFile);
+        } catch (uploadError) {
+          setUploadError(
+            uploadError instanceof Error
+              ? uploadError.message
+              : "Не удалось загрузить изображение.",
+          );
+          return;
+        }
       }
 
       const response = await fetch(`/api/products/${product.id}`, {
@@ -175,7 +203,7 @@ export default function AdminProductForm({
             .split(",")
             .map((ingredient) => ingredient.trim())
             .filter(Boolean),
-          imageUrl: imageUrl.trim() || null,
+          imageUrl: nextImageUrl,
         }),
       });
 
@@ -218,7 +246,7 @@ export default function AdminProductForm({
       </label>
 
       <label>
-        Адрес товара — slug
+        Адрес товара - slug
         <input
           type="text"
           required
@@ -300,10 +328,11 @@ export default function AdminProductForm({
       <label>
         Выбрать новое изображение
         <input
+          ref={imageFileInputRef}
           type="file"
           accept="image/*"
-          disabled={uploading || saving}
-          onChange={handleImageUpload}
+          disabled={saving}
+          onChange={handleImageChange}
           style={{
             display: "block",
             width: "100%",
@@ -313,14 +342,29 @@ export default function AdminProductForm({
         />
       </label>
 
-      {uploading && <p style={{ margin: 0 }}>Загрузка изображения...</p>}
+      {imageFile && (
+        <button
+          type="button"
+          onClick={clearSelectedImageFile}
+          disabled={saving}
+          style={{ padding: 10, alignSelf: "flex-start" }}
+        >
+          Очистить выбранный файл
+        </button>
+      )}
+
+      {uploadError && (
+        <p style={{ color: "red", margin: 0 }}>
+          {uploadError}
+        </p>
+      )}
 
       <label>
         Путь к изображению
         <input
           type="text"
           value={imageUrl}
-          onChange={(event) => setImageUrl(event.target.value)}
+          onChange={handleImageUrlChange}
           style={{ width: "100%", padding: 10 }}
         />
       </label>
@@ -379,7 +423,6 @@ export default function AdminProductForm({
         type="submit"
         disabled={
           saving ||
-          uploading ||
           brands.length === 0 ||
           categories.length === 0
         }
@@ -387,7 +430,6 @@ export default function AdminProductForm({
           padding: 12,
           cursor:
             saving ||
-            uploading ||
             brands.length === 0 ||
             categories.length === 0
               ? "default"

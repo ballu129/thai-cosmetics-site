@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isVercelBlobUrl } from "@/lib/blob-url";
 
@@ -52,6 +52,7 @@ export default function NewProductForm({
   categories: Category[];
 }) {
   const router = useRouter();
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -68,6 +69,7 @@ export default function NewProductForm({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [uploadError, setUploadError] = useState("");
 
   function handleImageChange(
     event: ChangeEvent<HTMLInputElement>,
@@ -82,14 +84,33 @@ export default function NewProductForm({
     const validationError = validateImageFile(file);
 
     if (validationError) {
-      setError(validationError);
+      setUploadError(validationError);
       event.target.value = "";
       setImageFile(null);
       return;
     }
 
-    setError("");
+    setUploadError("");
     setImageFile(file);
+  }
+
+  function handleImageUrlChange(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    setImageUrl(event.target.value);
+
+    if (event.target.value.trim()) {
+      setUploadError("");
+    }
+  }
+
+  function clearSelectedImageFile() {
+    setImageFile(null);
+    setUploadError("");
+
+    if (imageFileInputRef.current) {
+      imageFileInputRef.current.value = "";
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -97,11 +118,15 @@ export default function NewProductForm({
 
     setSaving(true);
     setError("");
+    setUploadError("");
 
     try {
       let uploadedImageUrl = imageUrl.trim() || null;
 
-      if (imageFile) {
+      const shouldUploadImage =
+        imageFile && !uploadedImageUrl;
+
+      if (shouldUploadImage) {
         try {
           const formData = new FormData();
           formData.append("file", imageFile);
@@ -118,7 +143,7 @@ export default function NewProductForm({
             !uploadData.imageUrl ||
             !isVercelBlobUrl(uploadData.imageUrl)
           ) {
-            setError(
+            setUploadError(
               uploadData.error ??
                 "Не удалось загрузить изображение.",
             );
@@ -127,7 +152,7 @@ export default function NewProductForm({
 
           uploadedImageUrl = uploadData.imageUrl;
         } catch {
-          setError("Не удалось загрузить изображение.");
+          setUploadError("Не удалось загрузить изображение.");
           return;
         }
       }
@@ -279,7 +304,7 @@ export default function NewProductForm({
         <input
           type="text"
           value={imageUrl}
-          onChange={(event) => setImageUrl(event.target.value)}
+          onChange={handleImageUrlChange}
           placeholder="/products/example.jpg"
           style={{ width: "100%", padding: 10 }}
         />
@@ -288,6 +313,7 @@ export default function NewProductForm({
       <label>
         Выбрать изображение
         <input
+          ref={imageFileInputRef}
           type="file"
           accept="image/*"
           disabled={saving}
@@ -300,6 +326,23 @@ export default function NewProductForm({
           }}
         />
       </label>
+
+      {imageFile && (
+        <button
+          type="button"
+          onClick={clearSelectedImageFile}
+          disabled={saving}
+          style={{ padding: 10, alignSelf: "flex-start" }}
+        >
+          Очистить выбранный файл
+        </button>
+      )}
+
+      {uploadError && (
+        <p style={{ color: "red", margin: 0 }}>
+          {uploadError}
+        </p>
+      )}
 
       <label>
         <input

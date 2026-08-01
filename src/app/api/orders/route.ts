@@ -1,6 +1,12 @@
 ﻿import { NextResponse } from "next/server";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { auth } from "@/lib/auth";
+import {
+  buildGuestOrderPath,
+  generateOrderAccessToken,
+  hashOrderLookupEmail,
+  hashOrderAccessToken,
+} from "@/lib/order-access";
 import { prisma } from "@/lib/prisma";
 
 type OrderItemRequest = {
@@ -191,6 +197,10 @@ export async function POST(request: Request) {
     }
 
     const totalPrice = calculateOrderTotal(orderItems);
+    const isGuestOrder = !session?.user?.id;
+    const guestAccessToken = isGuestOrder
+      ? generateOrderAccessToken()
+      : null;
 
     const order = await prisma.order.create({
       data: {
@@ -200,8 +210,12 @@ export async function POST(request: Request) {
         address,
         country: "",
         city: "",
+        customerComment: cleanText(body.customer.comment ?? "") || null,
         totalAmount: totalPrice,
         userId: session?.user?.id ?? null,
+        guestAccessTokenHash: guestAccessToken
+          ? hashOrderAccessToken(guestAccessToken)
+          : null,
 
         items: {
           create: orderItems,
@@ -212,9 +226,24 @@ export async function POST(request: Request) {
       },
     });
 
+    if (guestAccessToken) {
+      await prisma.order.update({
+        where: {
+          id: order.id,
+        },
+        data: {
+          guestLookupEmailHash: hashOrderLookupEmail(order.id, email),
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       orderId: order.id,
+      isGuestOrder,
+      orderAccessUrl: guestAccessToken
+        ? buildGuestOrderPath(order.id, guestAccessToken)
+        : "/account/orders",
     });
   } catch (error) {
     console.error(error);

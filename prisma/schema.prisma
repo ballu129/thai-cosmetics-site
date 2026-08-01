@@ -64,25 +64,39 @@ model Product {
 }
 
 model Order {
-  id           String      @id @default(cuid())
-  customerName String
-  phone        String
-  email        String
-  country      String
-  city         String
-  address      String
-  totalAmount  Decimal     @db.Decimal(12, 2)
-  status       OrderStatus @default(NEW)
-  items        OrderItem[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  userId       String?
-  user         User?       @relation(fields: [userId], references: [id])
+  id                   String         @id @default(cuid())
+  customerName         String
+  phone                String
+  email                String
+  country              String
+  city                 String
+  address              String
+  postalCode           String?
+  totalAmount          Decimal        @db.Decimal(12, 2)
+  deliveryCost         Decimal        @default(0) @db.Decimal(12, 2)
+  customerComment      String?
+  trackingNumber       String?
+  status               OrderStatus    @default(NEW)
+  paymentMethod        PaymentMethod  @default(PAYMENT_ON_DELIVERY)
+  paymentStatus        PaymentStatus  @default(PENDING)
+  deliveryMethod       DeliveryMethod @default(OTHER)
+  deliveryStatus       DeliveryStatus @default(NOT_READY)
+  guestAccessTokenHash String?        @unique
+  guestLookupEmailHash String?
+  items                OrderItem[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  userId               String?
+  user                 User?          @relation(fields: [userId], references: [id])
 
   @@index([customerName])
   @@index([phone])
   @@index([email])
   @@index([status])
+  @@index([paymentStatus])
+  @@index([deliveryStatus])
+  @@index([guestAccessTokenHash])
+  @@index([guestLookupEmailHash])
   @@index([userId])
   @@index([createdAt])
 }
@@ -163,5 +177,36 @@ enum OrderStatus {
   PROCESSING
   SHIPPED
   COMPLETED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  PAYMENT_ON_DELIVERY
+  BANK_CARD
+  SBP
+  CRYPTO
+}
+
+enum PaymentStatus {
+  NOT_REQUIRED
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum DeliveryMethod {
+  CDEK_COURIER
+  CDEK_PICKUP
+  OTHER
+}
+
+enum DeliveryStatus {
+  NOT_READY
+  PREPARING
+  HANDED_TO_CARRIER
+  IN_TRANSIT
+  READY_FOR_PICKUP
+  DELIVERED
   CANCELLED
 }

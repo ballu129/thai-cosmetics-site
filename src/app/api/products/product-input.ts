@@ -1,5 +1,8 @@
 import { isVercelBlobUrl } from "@/lib/blob-url";
 
+const PUBLIC_PRODUCT_IMAGE_PATH_PATTERN =
+  /^\/products\/[A-Za-z0-9][A-Za-z0-9._/-]*\.(?:jpe?g|png|webp)$/i;
+
 type ProductInput = {
   name: string;
   slug: string;
@@ -34,6 +37,15 @@ function readRequiredString(
   const value = body[field];
 
   return typeof value === "string" ? value.trim() : "";
+}
+
+function isPublicProductImagePath(value: string) {
+  return (
+    PUBLIC_PRODUCT_IMAGE_PATH_PATTERN.test(value) &&
+    !value.includes("..") &&
+    !value.includes("//") &&
+    !value.includes("\\")
+  );
 }
 
 export function validateProductInput(
@@ -112,11 +124,15 @@ export function validateProductInput(
       ? body.imageUrl.trim()
       : "";
 
-  if (imageUrl && !isVercelBlobUrl(imageUrl)) {
+  if (
+    imageUrl &&
+    !isVercelBlobUrl(imageUrl) &&
+    !isPublicProductImagePath(imageUrl)
+  ) {
     return {
       success: false,
       error:
-        "Изображение товара должно быть полной ссылкой Vercel Blob.",
+        "Изображение товара должно быть ссылкой Vercel Blob или путём /products/*.jpg, /products/*.png, /products/*.webp.",
     };
   }
 
