@@ -8,11 +8,25 @@ import {
 } from "@/lib/import/spreadsheet";
 import { readImportImages } from "@/lib/import/images";
 import { runProductImport } from "@/lib/import/products";
+import type {
+  ExistingProductMode,
+  ImportRowResult,
+} from "@/lib/import/columns";
 
 export const runtime = "nodejs";
 
-function parseDryRun(value: FormDataEntryValue | null) {
-  return value !== "false";
+function parseAction(value: FormDataEntryValue | null) {
+  return value === "import" ? "import" : "preview";
+}
+
+function parseExistingProductMode(
+  value: FormDataEntryValue | null,
+): ExistingProductMode {
+  return value === "update" ? "update" : "skip";
+}
+
+function parseBoolean(value: FormDataEntryValue | null) {
+  return value === "true" || value === "1" || value === "yes";
 }
 
 function createImportErrorReport({
@@ -22,11 +36,15 @@ function createImportErrorReport({
   dryRun: boolean;
   error: string;
 }) {
-  const row = {
+  const row: ImportRowResult = {
     row: 1,
     slug: "",
     name: "",
-    status: "error" as const,
+    brand: "",
+    category: "",
+    price: "",
+    action: "error",
+    status: "error",
     errors: [error],
   };
 
@@ -43,6 +61,24 @@ function createImportErrorReport({
   };
 }
 
+function getSafeImportErrorMessage(error: unknown) {
+  const fallback = "Не удалось выполнить импорт. Проверьте файл и повторите попытку.";
+
+  if (!(error instanceof Error) || !error.message) {
+    return fallback;
+  }
+
+  if (
+    /prisma|database_url|blob_read_write_token|vercel_oidc_token|auth_secret|invalid `/i.test(
+      error.message,
+    )
+  ) {
+    return fallback;
+  }
+
+  return error.message;
+}
+
 export async function POST(request: Request) {
   const unauthorizedResponse = await requireAdminSession();
 
@@ -54,11 +90,18 @@ export async function POST(request: Request) {
 
   try {
     const formData = await request.formData();
-    dryRun = parseDryRun(formData.get("dryRun"));
+    const action = parseAction(formData.get("action"));
+    dryRun = action !== "import";
+    const existingProductMode = parseExistingProductMode(
+      formData.get("existingProductMode"),
+    );
+    const createMissingBrands = parseBoolean(
+      formData.get("createMissingBrands"),
+    );
     const spreadsheet = formData.get("spreadsheet");
     const imagesZip = formData.get("imagesZip");
 
-    if (!(spreadsheet instanceof File)) {
+    if (!(spreadsheet instanceof File) || spreadsheet.size === 0) {
       return NextResponse.json(
         createImportErrorReport({
           dryRun,
@@ -105,6 +148,8 @@ export async function POST(request: Request) {
     );
     const report = await runProductImport({
       dryRun,
+      existingProductMode,
+      createMissingBrands,
       rows: parsedTable.rows,
       images,
       prisma,
@@ -112,6 +157,8 @@ export async function POST(request: Request) {
 
     if (!dryRun && (report.created > 0 || report.updated > 0)) {
       revalidatePath("/admin/products");
+      revalidatePath("/admin/products/import");
+      revalidatePath("/admin/import");
       revalidatePath("/admin/brands");
       revalidatePath("/admin/categories");
       revalidatePath("/catalog");
@@ -120,18 +167,19 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: report.errors.length === 0,
+      existingProductMode,
+      createMissingBrands,
       ...report,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Product import failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
 
     return NextResponse.json(
       createImportErrorReport({
         dryRun,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Не удалось выполнить импорт.",
+        error: getSafeImportErrorMessage(error),
       }),
       { status: 400 },
     );

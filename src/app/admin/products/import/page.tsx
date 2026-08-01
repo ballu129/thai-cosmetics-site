@@ -3,7 +3,7 @@ import ProductImportForm from "@/components/ProductImportForm";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminImportPage() {
+export default function AdminProductsImportPage() {
   return (
     <main
       style={{
@@ -17,10 +17,9 @@ export default function AdminImportPage() {
       <h1 style={{ marginTop: 24 }}>Импорт товаров</h1>
 
       <p style={{ maxWidth: 820, lineHeight: 1.6 }}>
-        Загрузите CSV или XLSX-файл с товарами. Сначала выполните
-        предварительную проверку: она не создаёт товары, не меняет базу
-        и не загружает изображения в Blob. После проверки можно запустить
-        импорт только для валидных строк.
+        Массовый импорт поддерживает CSV и XLSX до 2500 строк. Сначала
+        проверьте файл, выберите режим для существующих slug и отдельно
+        подтвердите создание отсутствующих брендов.
       </p>
 
       <ProductImportForm />

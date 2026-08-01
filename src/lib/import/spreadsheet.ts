@@ -1,15 +1,15 @@
 import JSZip from "jszip";
 import {
   IMPORT_COLUMNS,
+  mapImportHeader,
   type ImportRow,
   type ParsedImportTable,
-  normalizeHeader,
   normalizeValue,
 } from "./columns";
 import { getFileExtension } from "./images";
 
-export const MAX_TABLE_SIZE_BYTES = 5 * 1024 * 1024;
-export const MAX_IMPORT_ROWS = 500;
+export const MAX_TABLE_SIZE_BYTES = 10 * 1024 * 1024;
+export const MAX_IMPORT_ROWS = 2500;
 
 function decodeXml(value: string) {
   return value
@@ -93,21 +93,17 @@ async function parseXlsxRows(arrayBuffer: ArrayBuffer) {
     const cellPattern = /<c(?:\s[^>]*)?>[\s\S]*?<\/c>/g;
     let cellMatch: RegExpExecArray | null;
 
-    while (
-      (cellMatch = cellPattern.exec(rowMatch[0])) !== null
-    ) {
+    while ((cellMatch = cellPattern.exec(rowMatch[0])) !== null) {
       const cellXml = cellMatch[0];
       const attributes = readCellAttributes(cellXml);
       const columnIndex = getCellColumnIndex(
         attributes.get("r") ?? "",
       );
       const type = attributes.get("t");
-      const value =
-        cellXml.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? "";
+      const value = cellXml.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? "";
 
       if (type === "s") {
-        row[columnIndex] =
-          sharedStrings[Number(value)] ?? "";
+        row[columnIndex] = sharedStrings[Number(value)] ?? "";
       } else if (type === "inlineStr") {
         row[columnIndex] = readXmlTexts(cellXml);
       } else {
@@ -166,16 +162,11 @@ function parseCsv(text: string) {
 
   currentRow.push(currentCell);
 
-  if (
-    currentRow.some((cell) => cell.trim()) ||
-    rows.length === 0
-  ) {
+  if (currentRow.some((cell) => cell.trim()) || rows.length === 0) {
     rows.push(currentRow);
   }
 
-  return rows.filter((row) =>
-    row.some((cell) => cell.trim()),
-  );
+  return rows.filter((row) => row.some((cell) => cell.trim()));
 }
 
 function tableRowsToObjects(rows: string[][]): ParsedImportTable {
@@ -189,12 +180,15 @@ function tableRowsToObjects(rows: string[][]): ParsedImportTable {
   const headerIndexes = new Map<string, number>();
 
   rows[0].forEach((header, index) => {
-    headerIndexes.set(normalizeHeader(header), index);
+    const mappedHeader = mapImportHeader(header);
+
+    if (mappedHeader && !headerIndexes.has(mappedHeader)) {
+      headerIndexes.set(mappedHeader, index);
+    }
   });
 
   const missingColumns = IMPORT_COLUMNS.filter(
-    (column) =>
-      !headerIndexes.has(normalizeHeader(column)),
+    (column) => !headerIndexes.has(column),
   );
 
   if (missingColumns.length > 0) {
@@ -208,15 +202,11 @@ function tableRowsToObjects(rows: string[][]): ParsedImportTable {
     rows: rows.slice(1).map((row) => {
       return Object.fromEntries(
         IMPORT_COLUMNS.map((column) => {
-          const index = headerIndexes.get(
-            normalizeHeader(column),
-          );
+          const index = headerIndexes.get(column);
 
           return [
             column,
-            normalizeValue(
-              index === undefined ? "" : row[index],
-            ),
+            normalizeValue(index === undefined ? "" : row[index]),
           ];
         }),
       ) as ImportRow;
@@ -227,29 +217,21 @@ function tableRowsToObjects(rows: string[][]): ParsedImportTable {
 
 export async function readImportSpreadsheet(file: File) {
   if (file.size > MAX_TABLE_SIZE_BYTES) {
-    throw new Error(
-      "Размер таблицы не должен превышать 5 МБ.",
-    );
+    throw new Error("Размер таблицы не должен превышать 10 МБ.");
   }
 
   const extension = getFileExtension(file.name);
   const arrayBuffer = await file.arrayBuffer();
 
   if (extension === "csv") {
-    const text = new TextDecoder("utf-8").decode(
-      arrayBuffer,
-    );
+    const text = new TextDecoder("utf-8").decode(arrayBuffer);
 
     return tableRowsToObjects(parseCsv(text));
   }
 
   if (extension === "xlsx") {
-    return tableRowsToObjects(
-      await parseXlsxRows(arrayBuffer),
-    );
+    return tableRowsToObjects(await parseXlsxRows(arrayBuffer));
   }
 
-  throw new Error(
-    "Загрузите таблицу в формате .xlsx или .csv.",
-  );
+  throw new Error("Загрузите таблицу в формате .xlsx или .csv.");
 }

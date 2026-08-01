@@ -42,7 +42,7 @@ export default async function AdminProductsPage() {
           }}
         >
           <Link
-            href="/admin/import"
+            href="/admin/products/import"
             style={actionLinkStyle}
           >
             Импорт

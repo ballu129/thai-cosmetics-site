@@ -8,6 +8,7 @@ import {
 } from "@/lib/blob-auth";
 
 export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_ARCHIVE_SIZE_BYTES = 100 * 1024 * 1024;
 
 export const IMAGE_CONTENT_TYPES = new Map([
   ["jpg", "image/jpeg"],
@@ -19,24 +20,21 @@ export const IMAGE_CONTENT_TYPES = new Map([
 export type ImportImageArchive = Map<string, JSZip.JSZipObject>;
 
 export function getFileExtension(fileName: string) {
-  return path
-    .extname(fileName)
-    .slice(1)
-    .toLowerCase();
+  return path.extname(fileName).slice(1).toLowerCase();
 }
 
 function getBaseFileName(fileName: string) {
-  return path
-    .basename(fileName.replaceAll("\\", "/"))
-    .toLowerCase();
+  return path.basename(fileName.replaceAll("\\", "/")).toLowerCase();
 }
 
 export function getImportImage(
   imageName: string,
   images: ImportImageArchive,
 ) {
-  return images.get(imageName.toLowerCase()) ??
-    images.get(getBaseFileName(imageName));
+  return (
+    images.get(imageName.toLowerCase()) ??
+    images.get(getBaseFileName(imageName))
+  );
 }
 
 export function isSupportedImageName(imageName: string) {
@@ -49,14 +47,14 @@ export async function readImportImages(zipFile: File | null) {
   }
 
   if (getFileExtension(zipFile.name) !== "zip") {
-    throw new Error(
-      "Архив изображений должен быть в формате .zip.",
-    );
+    throw new Error("Архив изображений должен быть в формате .zip.");
   }
 
-  const zip = await JSZip.loadAsync(
-    await zipFile.arrayBuffer(),
-  );
+  if (zipFile.size > MAX_IMAGE_ARCHIVE_SIZE_BYTES) {
+    throw new Error("Размер ZIP-архива не должен превышать 100 МБ.");
+  }
+
+  const zip = await JSZip.loadAsync(await zipFile.arrayBuffer());
   const images = new Map<string, JSZip.JSZipObject>();
 
   for (const entry of Object.values(zip.files)) {
@@ -82,7 +80,7 @@ export async function validateImportImage(
   images: ImportImageArchive,
 ) {
   if (!isSupportedImageName(imageName)) {
-    return "Изображение должно быть JPG, PNG или WEBP.";
+    return "Изображение должно быть JPG, JPEG, PNG или WEBP.";
   }
 
   const image = getImportImage(imageName, images);
@@ -107,26 +105,20 @@ export async function uploadImportImage(
   const image = getImportImage(imageName, images);
 
   if (!image) {
-    throw new Error(
-      `Файл изображения "${imageName}" не найден в архиве.`,
-    );
+    throw new Error(`Файл изображения "${imageName}" не найден в архиве.`);
   }
 
   const extension = getFileExtension(imageName);
   const contentType = IMAGE_CONTENT_TYPES.get(extension);
 
   if (!contentType) {
-    throw new Error(
-      `Формат изображения "${imageName}" не поддерживается.`,
-    );
+    throw new Error(`Формат изображения "${imageName}" не поддерживается.`);
   }
 
   const buffer = await image.async("nodebuffer");
 
   if (buffer.byteLength > MAX_IMAGE_SIZE_BYTES) {
-    throw new Error(
-      `Файл изображения "${imageName}" больше 5 МБ.`,
-    );
+    throw new Error(`Файл изображения "${imageName}" больше 5 МБ.`);
   }
 
   try {
@@ -147,8 +139,6 @@ export async function uploadImportImage(
       throw error;
     }
 
-    throw new Error(
-      "Не удалось загрузить изображение в Vercel Blob.",
-    );
+    throw new Error("Не удалось загрузить изображение в Vercel Blob.");
   }
 }

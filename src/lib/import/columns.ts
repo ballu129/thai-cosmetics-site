@@ -1,23 +1,39 @@
 export const IMPORT_COLUMNS = [
-  "Бренд",
-  "Категория",
-  "Название",
-  "Slug",
-  "Цена",
-  "Краткое описание",
-  "Полное описание",
-  "Активные ингредиенты",
-  "Способ применения",
-  "Меры предосторожности",
-  "Состав",
-  "Лечебный товар",
-  "Имя изображения",
-  "Обновлять существующий товар",
+  "name",
+  "slug",
+  "brand",
+  "category",
+  "price",
+  "description",
+  "activeIngredients",
+  "imageUrl",
+  "healing",
 ] as const;
+
+export const IMPORT_COLUMN_ALIASES: Record<string, ImportColumn> = {
+  название: "name",
+  имя: "name",
+  товар: "name",
+  бренд: "brand",
+  категория: "category",
+  цена: "price",
+  описание: "description",
+  "активные ингредиенты": "activeIngredients",
+  изображение: "imageUrl",
+  "ссылка изображения": "imageUrl",
+  "путь изображения": "imageUrl",
+  "имя изображения": "imageUrl",
+  лечебный: "healing",
+  "лечебный товар": "healing",
+};
 
 export type ImportColumn = (typeof IMPORT_COLUMNS)[number];
 
 export type ImportRow = Record<ImportColumn, string>;
+
+export type ExistingProductMode = "skip" | "update";
+
+export type ImportAction = "create" | "update" | "skip" | "error";
 
 export type ImportRowStatus =
   | "created"
@@ -27,10 +43,16 @@ export type ImportRowStatus =
 
 export type ImportRowResult = {
   row: number;
-  slug: string;
   name: string;
+  slug: string;
+  brand: string;
+  category: string;
+  price: string;
+  action: ImportAction;
   status: ImportRowStatus;
   errors: string[];
+  brandMissing?: boolean;
+  productExists?: boolean;
 };
 
 export type ImportReport = {
@@ -57,4 +79,14 @@ export function normalizeHeader(value: unknown) {
 
 export function normalizeValue(value: unknown) {
   return String(value ?? "").trim();
+}
+
+export function mapImportHeader(value: unknown) {
+  const normalized = normalizeHeader(value);
+
+  return (
+    IMPORT_COLUMNS.find((column) => normalizeHeader(column) === normalized) ??
+    IMPORT_COLUMN_ALIASES[normalized] ??
+    null
+  );
 }

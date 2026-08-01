@@ -1,24 +1,30 @@
 import JSZip from "jszip";
 import { NextResponse } from "next/server";
+import { requireAdminSession } from "@/lib/admin-auth";
 import { IMPORT_COLUMNS } from "@/lib/import/columns";
 
 export const runtime = "nodejs";
 
+const TEMPLATE_HEADERS = [
+  ...IMPORT_COLUMNS,
+  "healingFormat",
+  "activeIngredientsFormat",
+  "imageUrlExample",
+];
+
 const exampleRow = [
+  "Wang Prom Herbal Balm 50 g",
+  "wang-prom-herbal-balm-50g",
   "Wang Prom",
-  "Лечебная косметика",
-  "Wang Prom Herbal Balm",
-  "wang-prom-herbal-balm",
-  "690",
-  "Краткое описание товара для карточки каталога.",
-  "Подробное описание товара для страницы товара.",
-  "ментол, камфора, тайские травы",
-  "Нанести небольшое количество на кожу и мягко втереть.",
-  "Только для наружного применения. Избегать контакта с глазами.",
-  "Ментол, камфора, травяные экстракты, вазелиновая основа.",
-  "да",
-  "wang-prom-herbal-balm.png",
-  "нет",
+  "Тайские бальзамы",
+  "720",
+  "Травяной бальзам для наружного применения и массажа.",
+  "плай, ментол, камфора",
+  "/products/wang-prom-herbal-balm-50g.jpg",
+  "yes",
+  "yes/no, true/false, 1/0 или да/нет",
+  "Список через запятую: плай, ментол, камфора. Можно JSON: [\"плай\",\"ментол\"]",
+  "/products/file.jpg или https://*.blob.vercel-storage.com/products/file.jpg",
 ];
 
 function escapeXml(value: string) {
@@ -113,7 +119,7 @@ async function createTemplateXlsx() {
 
   zip.file(
     "xl/worksheets/sheet1.xml",
-    createSheetXml([[...IMPORT_COLUMNS], exampleRow]),
+    createSheetXml([TEMPLATE_HEADERS, exampleRow]),
   );
 
   return zip.generateAsync({
@@ -123,6 +129,12 @@ async function createTemplateXlsx() {
 }
 
 export async function GET() {
+  const unauthorizedResponse = await requireAdminSession();
+
+  if (unauthorizedResponse) {
+    return unauthorizedResponse;
+  }
+
   const file = await createTemplateXlsx();
   const arrayBuffer = new ArrayBuffer(file.byteLength);
   new Uint8Array(arrayBuffer).set(file);
