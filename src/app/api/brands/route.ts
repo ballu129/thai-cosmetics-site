@@ -12,7 +12,14 @@ export async function GET() {
   }
 
   const brands = await prisma.brand.findMany({
-    include: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      logoUrl: true,
+      websiteUrl: true,
+      isActive: true,
       _count: {
         select: {
           products: true,
@@ -72,6 +79,7 @@ export async function POST(request: Request) {
 
     revalidatePath("/admin/brands");
     revalidatePath("/admin/products/new");
+    revalidatePath("/admin/products/import");
     revalidatePath("/brands");
 
     return NextResponse.json(
@@ -82,7 +90,9 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    console.error(error);
+    console.error("Brand creation failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
 
     return NextResponse.json(
       {

@@ -4,17 +4,20 @@ import { useRouter } from "next/navigation";
 
 type DeleteBrandButtonProps = {
   brandId: string;
-  disabled: boolean;
+  productCount: number;
 };
 
 export default function DeleteBrandButton({
   brandId,
-  disabled,
+  productCount,
 }: DeleteBrandButtonProps) {
   const router = useRouter();
 
   async function handleDelete() {
-    if (disabled) {
+    if (productCount > 0) {
+      alert(
+        `Нельзя удалить бренд, пока к нему привязаны товары. Связанных товаров: ${productCount}.`,
+      );
       return;
     }
 
@@ -41,21 +44,19 @@ export default function DeleteBrandButton({
   return (
     <button
       type="button"
-      disabled={disabled}
       onClick={handleDelete}
       title={
-        disabled
+        productCount > 0
           ? "Нельзя удалить бренд с товарами"
           : "Удалить бренд"
       }
       style={{
-        marginLeft: 8,
         padding: "7px 12px",
         border: "1px solid #c33",
         borderRadius: 6,
         background: "#fff",
-        color: disabled ? "#999" : "#c33",
-        cursor: disabled ? "not-allowed" : "pointer",
+        color: "#c33",
+        cursor: "pointer",
       }}
     >
       Удалить

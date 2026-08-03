@@ -18,9 +18,7 @@ export default function NewBrandPage() {
         ← Назад к брендам
       </Link>
 
-      <h1 style={{ marginTop: 24 }}>
-        Новый бренд
-      </h1>
+      <h1 style={{ marginTop: 24 }}>Новый бренд</h1>
 
       <BrandForm />
     </main>

@@ -67,6 +67,7 @@ export async function PUT(
 
     revalidatePath("/admin/brands");
     revalidatePath("/admin/products/new");
+    revalidatePath("/admin/products/import");
     revalidatePath("/brands");
     revalidatePath(`/brands/${existingBrand.slug}`);
     revalidatePath(`/brands/${brand.slug}`);
@@ -76,7 +77,9 @@ export async function PUT(
       brand,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Brand update failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
 
     return NextResponse.json(
       {
@@ -110,7 +113,9 @@ export async function DELETE(
 
     const brand = await prisma.brand.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        slug: true,
         _count: {
           select: {
             products: true,
@@ -130,7 +135,9 @@ export async function DELETE(
       return NextResponse.json(
         {
           success: false,
-          error: "Нельзя удалить бренд, у которого есть товары.",
+          error:
+            "Нельзя удалить бренд, пока к нему привязаны товары.",
+          productCount: brand._count.products,
         },
         { status: 400 },
       );
@@ -142,6 +149,7 @@ export async function DELETE(
 
     revalidatePath("/admin/brands");
     revalidatePath("/admin/products/new");
+    revalidatePath("/admin/products/import");
     revalidatePath("/brands");
     revalidatePath(`/brands/${brand.slug}`);
 
@@ -149,7 +157,9 @@ export async function DELETE(
       success: true,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Brand deletion failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
 
     return NextResponse.json(
       {

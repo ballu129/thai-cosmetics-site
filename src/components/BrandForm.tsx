@@ -9,6 +9,7 @@ type BrandData = {
   slug: string;
   description: string;
   logoUrl: string;
+  websiteUrl: string;
   isActive: boolean;
 };
 
@@ -22,14 +23,31 @@ type UploadResponse = {
   error?: string;
 };
 
-function createSlug(value: string) {
+const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function normalizeSlug(value: string) {
   return value
+    .normalize("NFKC")
     .trim()
     .toLowerCase()
-    .replace(/ё/g, "e")
-    .replace(/й/g, "i")
-    .replace(/[^a-z0-9а-я]+/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function isValidHttpUrl(value: string) {
+  if (!value) {
+    return true;
+  }
+
+  try {
+    const url = new URL(value);
+
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export default function BrandForm({ brand }: BrandFormProps) {
@@ -43,6 +61,9 @@ export default function BrandForm({ brand }: BrandFormProps) {
     brand?.description ?? "",
   );
   const [logoUrl, setLogoUrl] = useState(brand?.logoUrl ?? "");
+  const [websiteUrl, setWebsiteUrl] = useState(
+    brand?.websiteUrl ?? "",
+  );
   const [isActive, setIsActive] = useState(brand?.isActive ?? true);
 
   const [uploading, setUploading] = useState(false);
@@ -53,7 +74,7 @@ export default function BrandForm({ brand }: BrandFormProps) {
     setName(value);
 
     if (!slugWasEdited) {
-      setSlug(createSlug(value));
+      setSlug(normalizeSlug(value));
     }
   }
 
@@ -87,7 +108,9 @@ export default function BrandForm({ brand }: BrandFormProps) {
       const data = (await response.json()) as UploadResponse;
 
       if (!response.ok || !data.imageUrl) {
-        setError(data.error ?? "Не удалось загрузить логотип.");
+        setError(
+          data.error ?? "Не удалось загрузить логотип.",
+        );
         return;
       }
 
@@ -104,13 +127,34 @@ export default function BrandForm({ brand }: BrandFormProps) {
     event.preventDefault();
 
     const cleanName = name.trim();
-    const cleanSlug = slug.trim();
+    const cleanSlug = normalizeSlug(slug);
+    const cleanDescription = description.trim();
+    const cleanLogoUrl = logoUrl.trim();
+    const cleanWebsiteUrl = websiteUrl.trim();
 
     if (!cleanName || !cleanSlug) {
       setError("Заполните название и slug бренда.");
       return;
     }
 
+    if (!SLUG_PATTERN.test(cleanSlug)) {
+      setError(
+        "Slug должен содержать только латинские буквы, цифры и одиночные дефисы.",
+      );
+      return;
+    }
+
+    if (!isValidHttpUrl(cleanLogoUrl)) {
+      setError("Логотип должен быть корректным URL с http или https.");
+      return;
+    }
+
+    if (!isValidHttpUrl(cleanWebsiteUrl)) {
+      setError("Сайт бренда должен быть корректным URL с http или https.");
+      return;
+    }
+
+    setSlug(cleanSlug);
     setSaving(true);
     setError("");
 
@@ -125,9 +169,9 @@ export default function BrandForm({ brand }: BrandFormProps) {
           body: JSON.stringify({
             name: cleanName,
             slug: cleanSlug,
-            description: description.trim() || null,
-            logoUrl: logoUrl.trim() || null,
-            websiteUrl: null,
+            description: cleanDescription || null,
+            logoUrl: cleanLogoUrl || null,
+            websiteUrl: cleanWebsiteUrl || null,
             isActive,
           }),
         },
@@ -153,97 +197,118 @@ export default function BrandForm({ brand }: BrandFormProps) {
     <form
       onSubmit={handleSubmit}
       style={{
-        display: "flex",
-        flexDirection: "column",
+        display: "grid",
         gap: 16,
         marginTop: 24,
-        maxWidth: 700,
+        maxWidth: 760,
       }}
     >
-      <label>
-        Название
+      <label style={fieldStyle}>
+        <span style={labelStyle}>Название</span>
         <input
           type="text"
           required
           value={name}
-          onChange={(event) => handleNameChange(event.target.value)}
-          style={{ width: "100%", padding: 10 }}
+          onChange={(event) =>
+            handleNameChange(event.target.value)
+          }
+          style={inputStyle}
         />
       </label>
 
-      <label>
-        Slug
+      <label style={fieldStyle}>
+        <span style={labelStyle}>Slug</span>
         <input
           type="text"
           required
           value={slug}
+          onBlur={() => setSlug(normalizeSlug(slug))}
           onChange={(event) => {
             setSlug(event.target.value);
             setSlugWasEdited(true);
           }}
-          style={{ width: "100%", padding: 10 }}
+          style={inputStyle}
         />
       </label>
 
-      <label>
-        Описание
+      <label style={fieldStyle}>
+        <span style={labelStyle}>Описание</span>
         <textarea
           rows={6}
           value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          style={{ width: "100%", padding: 10 }}
+          onChange={(event) =>
+            setDescription(event.target.value)
+          }
+          style={inputStyle}
         />
       </label>
 
-      <label>
-        Загрузить логотип
+      <label style={fieldStyle}>
+        <span style={labelStyle}>Загрузить логотип</span>
         <input
           type="file"
           accept="image/*"
           disabled={uploading || saving}
           onChange={handleLogoUpload}
-          style={{
-            display: "block",
-            width: "100%",
-            marginTop: 8,
-            padding: 10,
-          }}
+          style={inputStyle}
         />
       </label>
 
-      {uploading && <p style={{ margin: 0 }}>Загрузка логотипа...</p>}
+      {uploading ? (
+        <p style={{ margin: 0 }}>Загрузка логотипа...</p>
+      ) : null}
 
-      <label>
-        Путь к логотипу
+      <label style={fieldStyle}>
+        <span style={labelStyle}>URL логотипа</span>
         <input
-          type="text"
+          type="url"
           value={logoUrl}
           onChange={(event) => setLogoUrl(event.target.value)}
-          placeholder="/products/example.jpg"
-          style={{ width: "100%", padding: 10 }}
+          placeholder="https://example.com/logo.png"
+          style={inputStyle}
         />
       </label>
 
-      <label>
+      <label style={fieldStyle}>
+        <span style={labelStyle}>Сайт бренда</span>
+        <input
+          type="url"
+          value={websiteUrl}
+          onChange={(event) =>
+            setWebsiteUrl(event.target.value)
+          }
+          placeholder="https://example.com"
+          style={inputStyle}
+        />
+      </label>
+
+      <label style={checkboxStyle}>
         <input
           type="checkbox"
           checked={isActive}
-          onChange={(event) => setIsActive(event.target.checked)}
-        />{" "}
+          onChange={(event) =>
+            setIsActive(event.target.checked)
+          }
+        />
         Активный бренд
       </label>
 
-      {error && (
-        <p style={{ color: "red", margin: 0 }}>
+      {error ? (
+        <p style={{ color: "#b91c1c", margin: 0 }}>
           {error}
         </p>
-      )}
+      ) : null}
 
       <button
         type="submit"
         disabled={saving || uploading}
         style={{
-          padding: 12,
+          width: "fit-content",
+          padding: "12px 18px",
+          border: "1px solid #254b3f",
+          borderRadius: 6,
+          background: "#254b3f",
+          color: "#fff",
           cursor: saving || uploading ? "default" : "pointer",
         }}
       >
@@ -252,3 +317,26 @@ export default function BrandForm({ brand }: BrandFormProps) {
     </form>
   );
 }
+
+const fieldStyle = {
+  display: "grid",
+  gap: 8,
+} as const;
+
+const labelStyle = {
+  fontWeight: 600,
+} as const;
+
+const inputStyle = {
+  width: "100%",
+  minWidth: 0,
+  padding: 10,
+  border: "1px solid #cbd5e1",
+  borderRadius: 6,
+} as const;
+
+const checkboxStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+} as const;

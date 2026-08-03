@@ -18,6 +18,15 @@ export default async function EditBrandPage({
 
   const brand = await prisma.brand.findUnique({
     where: { id },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      logoUrl: true,
+      websiteUrl: true,
+      isActive: true,
+    },
   });
 
   if (!brand) {
@@ -47,6 +56,7 @@ export default async function EditBrandPage({
           slug: brand.slug,
           description: brand.description ?? "",
           logoUrl: brand.logoUrl ?? "",
+          websiteUrl: brand.websiteUrl ?? "",
           isActive: brand.isActive,
         }}
       />
