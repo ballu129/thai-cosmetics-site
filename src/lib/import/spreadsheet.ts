@@ -6,13 +6,42 @@ import {
   type ParsedImportTable,
   normalizeValue,
 } from "./columns";
-import { getFileExtension } from "./images";
 
 export const MAX_TABLE_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_IMPORT_ROWS = 2500;
 
+function getFileExtension(fileName: string) {
+  return fileName.split(".").pop()?.toLowerCase() ?? "";
+}
+
 function decodeXml(value: string) {
   return value
+    .replace(/&#x([0-9a-f]+);/gi, (entity, codePoint) => {
+      const parsedCodePoint = Number.parseInt(codePoint, 16);
+
+      if (
+        !Number.isFinite(parsedCodePoint) ||
+        parsedCodePoint < 0 ||
+        parsedCodePoint > 0x10ffff
+      ) {
+        return entity;
+      }
+
+      return String.fromCodePoint(parsedCodePoint);
+    })
+    .replace(/&#([0-9]+);/g, (entity, codePoint) => {
+      const parsedCodePoint = Number.parseInt(codePoint, 10);
+
+      if (
+        !Number.isFinite(parsedCodePoint) ||
+        parsedCodePoint < 0 ||
+        parsedCodePoint > 0x10ffff
+      ) {
+        return entity;
+      }
+
+      return String.fromCodePoint(parsedCodePoint);
+    })
     .replace(/&quot;/g, "\"")
     .replace(/&apos;/g, "'")
     .replace(/&lt;/g, "<")
