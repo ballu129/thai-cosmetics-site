@@ -1,17 +1,11 @@
-﻿"use client";
+"use client";
 
-export default function PrintButton() {
+export default function PrintButton({ className }: { className?: string }) {
   return (
     <button
       type="button"
+      className={className}
       onClick={() => window.print()}
-      style={{
-        padding: "10px 16px",
-        border: "1px solid #777",
-        borderRadius: 6,
-        cursor: "pointer",
-        fontSize: 16,
-      }}
     >
       Распечатать заказ
     </button>
