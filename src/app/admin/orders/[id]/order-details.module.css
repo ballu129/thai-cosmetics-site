@@ -315,6 +315,11 @@
   background: #fbfdfb;
 }
 
+.totalsStandalone {
+  width: min(100%, 580px);
+  margin: 20px 0 0 auto;
+}
+
 .totalsList > div {
   display: flex;
   justify-content: space-between;
@@ -381,6 +386,10 @@
   .detailsGrid,
   .bottomGrid {
     grid-template-columns: 1fr;
+  }
+
+  .totalsStandalone {
+    width: 100%;
   }
 
   .itemRow {

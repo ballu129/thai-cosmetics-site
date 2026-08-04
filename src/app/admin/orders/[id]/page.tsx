@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type {
-  DeliveryMethod,
-  DeliveryStatus,
-  OrderStatus,
-  PaymentMethod,
-  PaymentStatus,
-} from "@/generated/prisma/client";
+import type { OrderStatus } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import PrintButton from "./PrintButton";
 import styles from "./order-details.module.css";
@@ -34,37 +28,6 @@ const statusClasses: Record<OrderStatus, string> = {
   SHIPPED: styles.statusShipped,
   COMPLETED: styles.statusCompleted,
   CANCELLED: styles.statusCancelled,
-};
-
-const paymentMethodNames: Record<PaymentMethod, string> = {
-  PAYMENT_ON_DELIVERY: "При получении",
-  BANK_CARD: "Банковская карта",
-  SBP: "СБП",
-  CRYPTO: "Криптовалюта",
-};
-
-const paymentStatusNames: Record<PaymentStatus, string> = {
-  NOT_REQUIRED: "Оплата не требуется",
-  PENDING: "Ожидает оплаты",
-  PAID: "Оплачен",
-  FAILED: "Ошибка оплаты",
-  REFUNDED: "Возвращён",
-};
-
-const deliveryMethodNames: Record<DeliveryMethod, string> = {
-  CDEK_COURIER: "Курьер CDEK",
-  CDEK_PICKUP: "Пункт выдачи CDEK",
-  OTHER: "Другой способ",
-};
-
-const deliveryStatusNames: Record<DeliveryStatus, string> = {
-  NOT_READY: "Не подготовлен",
-  PREPARING: "Готовится к отправке",
-  HANDED_TO_CARRIER: "Передан перевозчику",
-  IN_TRANSIT: "В пути",
-  READY_FOR_PICKUP: "Готов к выдаче",
-  DELIVERED: "Доставлен",
-  CANCELLED: "Доставка отменена",
 };
 
 const currencyFormatter = new Intl.NumberFormat("ru-RU", {
@@ -104,16 +67,8 @@ export default async function OrderPage({
       country: true,
       city: true,
       address: true,
-      postalCode: true,
       totalAmount: true,
-      deliveryCost: true,
-      customerComment: true,
-      trackingNumber: true,
       status: true,
-      paymentMethod: true,
-      paymentStatus: true,
-      deliveryMethod: true,
-      deliveryStatus: true,
       createdAt: true,
       updatedAt: true,
       user: {
@@ -139,12 +94,11 @@ export default async function OrderPage({
     notFound();
   }
 
-  const phone = order.phone.trim();
-  const email = order.email.trim();
+  const phone = order.phone?.trim() ?? "";
+  const email = order.email?.trim() ?? "";
   const hasAddressData = [
     order.address,
     order.city,
-    order.postalCode,
     order.country,
   ].some((value) => Boolean(value?.trim()));
   const itemsTotal = order.items.reduce(
@@ -239,10 +193,6 @@ export default async function OrderPage({
                 <dd>{getText(order.city)}</dd>
               </div>
               <div>
-                <dt>Индекс</dt>
-                <dd>{getText(order.postalCode)}</dd>
-              </div>
-              <div>
                 <dt>Страна</dt>
                 <dd>{getText(order.country)}</dd>
               </div>
@@ -251,29 +201,6 @@ export default async function OrderPage({
             <p className={styles.emptyText}>Данные доставки не указаны.</p>
           )}
 
-          <dl className={`${styles.detailsList} ${styles.deliveryMeta}`}>
-            <div>
-              <dt>Способ</dt>
-              <dd>{deliveryMethodNames[order.deliveryMethod]}</dd>
-            </div>
-            <div>
-              <dt>Статус доставки</dt>
-              <dd>{deliveryStatusNames[order.deliveryStatus]}</dd>
-            </div>
-            {order.trackingNumber?.trim() ? (
-              <div>
-                <dt>Трек-номер</dt>
-                <dd>{order.trackingNumber.trim()}</dd>
-              </div>
-            ) : null}
-          </dl>
-
-          {order.customerComment?.trim() ? (
-            <div className={styles.comment}>
-              <h3>Комментарий покупателя</h3>
-              <p>{order.customerComment.trim()}</p>
-            </div>
-          ) : null}
         </section>
       </div>
 
@@ -313,43 +240,24 @@ export default async function OrderPage({
         )}
       </section>
 
-      <div className={styles.bottomGrid}>
-        <section className={styles.card} aria-labelledby="payment-heading">
-          <h2 id="payment-heading" className={styles.sectionTitle}>
-            Оплата
-          </h2>
-          <dl className={styles.detailsList}>
-            <div>
-              <dt>Способ оплаты</dt>
-              <dd>{paymentMethodNames[order.paymentMethod]}</dd>
-            </div>
-            <div>
-              <dt>Статус оплаты</dt>
-              <dd>{paymentStatusNames[order.paymentStatus]}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section className={styles.totalsCard} aria-labelledby="totals-heading">
-          <h2 id="totals-heading" className={styles.sectionTitle}>
-            Итоги
-          </h2>
-          <dl className={styles.totalsList}>
-            <div>
-              <dt>Стоимость товаров</dt>
-              <dd>{currencyFormatter.format(itemsTotal)}</dd>
-            </div>
-            <div>
-              <dt>Доставка</dt>
-              <dd>{currencyFormatter.format(Number(order.deliveryCost))}</dd>
-            </div>
-            <div className={styles.grandTotal}>
-              <dt>Итоговая сумма</dt>
-              <dd>{currencyFormatter.format(Number(order.totalAmount))}</dd>
-            </div>
-          </dl>
-        </section>
-      </div>
+      <section
+        className={`${styles.totalsCard} ${styles.totalsStandalone}`}
+        aria-labelledby="totals-heading"
+      >
+        <h2 id="totals-heading" className={styles.sectionTitle}>
+          Итоги
+        </h2>
+        <dl className={styles.totalsList}>
+          <div>
+            <dt>Стоимость товаров</dt>
+            <dd>{currencyFormatter.format(itemsTotal)}</dd>
+          </div>
+          <div className={styles.grandTotal}>
+            <dt>Итоговая сумма</dt>
+            <dd>{currencyFormatter.format(Number(order.totalAmount))}</dd>
+          </div>
+        </dl>
+      </section>
 
       <section className={styles.infoSection} aria-labelledby="info-heading">
         <h2 id="info-heading" className={styles.sectionTitle}>
