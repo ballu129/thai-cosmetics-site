@@ -1,7 +1,9 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
+import type { Prisma } from "@/generated/prisma/client";
 import ProductCard from "@/components/ProductCard";
 import { prisma } from "@/lib/prisma";
+import CatalogFilters from "./CatalogFilters";
 import styles from "./Catalog.module.css";
 
 export const dynamic = "force-dynamic";
@@ -9,25 +11,68 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Каталог тайской косметики",
   description:
-    "Каталог оригинальной тайской косметики с поиском по названию, бренду и категории.",
+    "Оригинальная косметика из Таиланда для ухода за лицом, телом и волосами с доставкой в Россию и страны СНГ.",
+  alternates: {
+    canonical: "/catalog",
+  },
 };
 
-const DEFAULT_PAGE_SIZE = 24;
-const ALLOWED_PAGE_SIZES = [24, 48, 96];
+const PAGE_SIZES = [24, 48, 96] as const;
+const SORT_OPTIONS = [
+  "newest",
+  "oldest",
+  "name-asc",
+  "name-desc",
+  "price-asc",
+  "price-desc",
+] as const;
+const HEALING_OPTIONS = ["all", "true", "false"] as const;
+
+type PageSize = (typeof PAGE_SIZES)[number];
+type SortOption = (typeof SORT_OPTIONS)[number];
+type HealingOption = (typeof HEALING_OPTIONS)[number];
+type QueryValue = string | string[] | undefined;
 
 type CatalogProps = {
   searchParams: Promise<{
-    search?: string;
-    page?: string;
-    limit?: string;
+    search?: QueryValue;
+    brand?: QueryValue;
+    category?: QueryValue;
+    healing?: QueryValue;
+    sort?: QueryValue;
+    page?: QueryValue;
+    pageSize?: QueryValue;
+    limit?: QueryValue;
   }>;
 };
 
-function parsePositiveInteger(
-  value: string | undefined,
-  fallback: number,
-) {
-  const parsedValue = Number.parseInt(value ?? "", 10);
+type CatalogState = {
+  search: string;
+  brand: string;
+  category: string;
+  healing: HealingOption;
+  sort: SortOption;
+  pageSize: PageSize;
+};
+
+const orderByOptions: Record<
+  SortOption,
+  Prisma.ProductOrderByWithRelationInput[]
+> = {
+  newest: [{ createdAt: "desc" }, { id: "desc" }],
+  oldest: [{ createdAt: "asc" }, { id: "asc" }],
+  "name-asc": [{ name: "asc" }, { id: "asc" }],
+  "name-desc": [{ name: "desc" }, { id: "desc" }],
+  "price-asc": [{ price: "asc" }, { id: "asc" }],
+  "price-desc": [{ price: "desc" }, { id: "desc" }],
+};
+
+function getQueryValue(value: QueryValue) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function parsePositiveInteger(value: QueryValue, fallback: number) {
+  const parsedValue = Number.parseInt(getQueryValue(value) ?? "", 10);
 
   if (!Number.isFinite(parsedValue) || parsedValue < 1) {
     return fallback;
@@ -36,397 +81,376 @@ function parsePositiveInteger(
   return parsedValue;
 }
 
-function getPageSize(value: string | undefined) {
-  const requestedPageSize = parsePositiveInteger(
-    value,
-    DEFAULT_PAGE_SIZE,
-  );
+function getPageSize(value: QueryValue): PageSize {
+  const requestedPageSize = parsePositiveInteger(value, 24);
 
-  if (ALLOWED_PAGE_SIZES.includes(requestedPageSize)) {
-    return requestedPageSize;
-  }
-
-  return DEFAULT_PAGE_SIZE;
+  return PAGE_SIZES.includes(requestedPageSize as PageSize)
+    ? (requestedPageSize as PageSize)
+    : 24;
 }
 
-function createCatalogHref({
-  search,
-  page,
-  limit,
-}: {
-  search: string;
-  page: number;
-  limit: number;
-}) {
+function getSort(value: QueryValue): SortOption {
+  const requestedSort = getQueryValue(value);
+
+  return SORT_OPTIONS.includes(requestedSort as SortOption)
+    ? (requestedSort as SortOption)
+    : "newest";
+}
+
+function getHealing(value: QueryValue): HealingOption {
+  const requestedHealing = getQueryValue(value);
+
+  return HEALING_OPTIONS.includes(requestedHealing as HealingOption)
+    ? (requestedHealing as HealingOption)
+    : "all";
+}
+
+function createCatalogHref(state: CatalogState, page: number) {
   const params = new URLSearchParams();
 
-  if (search) {
-    params.set("search", search);
-  }
-
-  if (page > 1) {
-    params.set("page", String(page));
-  }
-
-  if (limit !== DEFAULT_PAGE_SIZE) {
-    params.set("limit", String(limit));
-  }
+  if (state.search) params.set("search", state.search);
+  if (state.brand) params.set("brand", state.brand);
+  if (state.category) params.set("category", state.category);
+  if (state.healing !== "all") params.set("healing", state.healing);
+  if (state.sort !== "newest") params.set("sort", state.sort);
+  if (state.pageSize !== 24) params.set("pageSize", String(state.pageSize));
+  if (page > 1) params.set("page", String(page));
 
   const queryString = params.toString();
-
-  if (!queryString) {
-    return "/catalog";
-  }
-
-  return `/catalog?${queryString}`;
+  return queryString ? `/catalog?${queryString}` : "/catalog";
 }
 
-function getVisiblePages(
-  currentPage: number,
-  totalPages: number,
-) {
-  const pages = new Set<number>();
-
-  pages.add(1);
-  pages.add(totalPages);
+function getVisiblePages(currentPage: number, totalPages: number) {
+  const pages = new Set([1, totalPages]);
 
   for (
     let pageNumber = currentPage - 2;
     pageNumber <= currentPage + 2;
     pageNumber += 1
   ) {
-    if (
-      pageNumber >= 1 &&
-      pageNumber <= totalPages
-    ) {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
       pages.add(pageNumber);
     }
   }
 
-  return Array.from(pages).sort(
-    (firstPage, secondPage) =>
-      firstPage - secondPage,
+  return Array.from(pages).sort((first, second) => first - second);
+}
+
+function getFoundLabel(count: number) {
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return `Найдено ${count} товаров`;
+  }
+
+  if (lastDigit === 1) {
+    return `Найден ${count} товар`;
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return `Найдено ${count} товара`;
+  }
+
+  return `Найдено ${count} товаров`;
+}
+
+function getUniqueCategories(rows: { category: string }[]) {
+  const categories = new Map<string, string>();
+
+  for (const row of rows) {
+    const category = row.category.trim();
+
+    if (category) {
+      const key = category.normalize("NFKC").toLocaleLowerCase("ru-RU");
+      categories.set(key, categories.get(key) ?? category);
+    }
+  }
+
+  return Array.from(categories.values()).sort((first, second) =>
+    first.localeCompare(second, "ru-RU", { sensitivity: "base" }),
   );
 }
 
-export default async function Catalog({
-  searchParams,
-}: CatalogProps) {
-  const {
-    search,
-    page: pageParam,
-    limit: limitParam,
-  } = await searchParams;
+export default async function Catalog({ searchParams }: CatalogProps) {
+  const params = await searchParams;
+  const search = (getQueryValue(params.search) ?? "").trim();
+  const requestedBrand = (getQueryValue(params.brand) ?? "").trim();
+  const requestedCategory = (getQueryValue(params.category) ?? "").trim();
+  const healing = getHealing(params.healing);
+  const sort = getSort(params.sort);
+  const requestedPage = parsePositiveInteger(params.page, 1);
+  const pageSize = getPageSize(params.pageSize ?? params.limit);
 
-  const query = search?.trim() ?? "";
-  const requestedPage = parsePositiveInteger(
-    pageParam,
-    1,
-  );
-  const pageSize = getPageSize(limitParam);
+  const [brands, categoryRows] = await Promise.all([
+    prisma.brand.findMany({
+      where: {
+        isActive: true,
+        products: {
+          some: {},
+        },
+      },
+      select: {
+        name: true,
+        slug: true,
+      },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    }),
+    prisma.product.findMany({
+      where: {
+        category: {
+          not: "",
+        },
+        brand: {
+          is: {
+            isActive: true,
+          },
+        },
+      },
+      select: {
+        category: true,
+      },
+      distinct: ["category"],
+    }),
+  ]);
 
-  const where = query
-    ? {
-        OR: [
-          {
-            name: {
-              contains: query,
-              mode: "insensitive" as const,
-            },
+  const categories = getUniqueCategories(categoryRows);
+  const brand = brands.some((item) => item.slug === requestedBrand)
+    ? requestedBrand
+    : "";
+  const category = categories.some(
+    (item) => item.localeCompare(requestedCategory, "ru-RU", {
+      sensitivity: "base",
+    }) === 0,
+  )
+    ? categories.find(
+        (item) =>
+          item.localeCompare(requestedCategory, "ru-RU", {
+            sensitivity: "base",
+          }) === 0,
+      ) ?? ""
+    : "";
+
+  const where: Prisma.ProductWhereInput = {
+    brand: {
+      is: {
+        isActive: true,
+        ...(brand ? { slug: brand } : {}),
+      },
+    },
+    ...(category
+      ? {
+          category: {
+            equals: category,
+            mode: "insensitive",
           },
-          {
-            category: {
-              contains: query,
-              mode: "insensitive" as const,
-            },
-          },
-          {
-            brand: {
+        }
+      : {}),
+    ...(healing === "true"
+      ? { healing: true }
+      : healing === "false"
+        ? { healing: false }
+        : {}),
+    ...(search
+      ? {
+          OR: [
+            {
               name: {
-                contains: query,
-                mode: "insensitive" as const,
+                contains: search,
+                mode: "insensitive",
               },
             },
-          },
-        ],
-      }
-    : undefined;
+            {
+              slug: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            {
+              category: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            {
+              brand: {
+                is: {
+                  name: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            },
+          ],
+        }
+      : {}),
+  };
 
-  const totalProducts = await prisma.product.count({
-    where,
-  });
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(totalProducts / pageSize),
-  );
-
-  const currentPage = Math.min(
-    requestedPage,
-    totalPages,
-  );
-
+  const totalProducts = await prisma.product.count({ where });
+  const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
+  const currentPage = Math.min(requestedPage, totalPages);
   const skip = (currentPage - 1) * pageSize;
 
-  const productsFromDb =
-    await prisma.product.findMany({
-      where,
-      include: {
-        brand: true,
+  const products = await prisma.product.findMany({
+    where,
+    select: {
+      slug: true,
+      name: true,
+      category: true,
+      price: true,
+      healing: true,
+      imageUrl: true,
+      brand: {
+        select: {
+          name: true,
+        },
       },
-      orderBy: {
-        createdAt: "asc",
-      },
-      skip,
-      take: pageSize,
-    });
+    },
+    orderBy: orderByOptions[sort],
+    skip,
+    take: pageSize,
+  });
 
-  const products = productsFromDb.map(
-    (product) => ({
-      slug: product.slug,
-      name: product.name,
-      brand: product.brand.name,
-      price: Number(product.price),
-      description: product.description,
-      healing: product.healing,
-      imageUrl: product.imageUrl ?? undefined,
-    }),
-  );
-
-  const visiblePages = getVisiblePages(
-    currentPage,
-    totalPages,
-  );
-
-  const firstProductNumber =
-    totalProducts === 0 ? 0 : skip + 1;
-
-  const lastProductNumber = Math.min(
-    skip + products.length,
-    totalProducts,
-  );
+  const state: CatalogState = {
+    search,
+    brand,
+    category,
+    healing,
+    sort,
+    pageSize,
+  };
+  const visiblePages = getVisiblePages(currentPage, totalPages);
+  const firstProductNumber = totalProducts === 0 ? 0 : skip + 1;
+  const lastProductNumber = Math.min(skip + products.length, totalProducts);
+  const hasActiveParameters =
+    Boolean(search || brand || category) ||
+    healing !== "all" ||
+    sort !== "newest" ||
+    pageSize !== 24;
 
   return (
     <section className={styles.catalog}>
-      <div className={styles.heading}>
-        <span className={styles.eyebrow}>
-          Более 2000 товаров
-        </span>
-
-        <h1 className={styles.title}>
-          Каталог тайской косметики
-        </h1>
-
+      <header className={styles.heading}>
+        <h1 className={styles.title}>Каталог тайской косметики</h1>
         <p className={styles.description}>
-          Найдите товар по названию, бренду или
-          категории.
+          Оригинальная косметика из Таиланда с доставкой в Россию и страны СНГ.
         </p>
-      </div>
+        <p className={styles.foundCount} aria-live="polite">
+          {getFoundLabel(totalProducts)}
+        </p>
+      </header>
 
-      <form
-        action="/catalog"
-        method="get"
-        className={styles.searchForm}
-      >
-        <input
-          className={styles.searchInput}
-          type="search"
-          name="search"
-          defaultValue={query}
-          placeholder="Например: бальзам, Wang Prom или уход за лицом"
-          aria-label="Поиск товаров"
-        />
-
-        <input
-          type="hidden"
-          name="limit"
-          value={pageSize}
-        />
-
-        <button
-          className={styles.searchButton}
-          type="submit"
-        >
-          Найти
-        </button>
-      </form>
-
-      {query && (
-        <div className={styles.searchResult}>
-          Результаты поиска по запросу:{" "}
-          <strong>«{query}»</strong>
-        </div>
-      )}
+      <CatalogFilters
+        key={[
+          search,
+          brand,
+          category,
+          healing,
+          sort,
+          pageSize,
+        ].join("|")}
+        brands={brands}
+        categories={categories}
+        values={state}
+        showReset={hasActiveParameters}
+      />
 
       {products.length > 0 ? (
         <>
-          <div className={styles.toolbar}>
-            <div className={styles.count}>
-              Показаны товары {firstProductNumber}–
-              {lastProductNumber} из {totalProducts}
-            </div>
-
-            <form
-              action="/catalog"
-              method="get"
-              className={styles.limitForm}
-            >
-              {query && (
-                <input
-                  type="hidden"
-                  name="search"
-                  value={query}
-                />
-              )}
-
-              <label htmlFor="catalog-limit">
-                Товаров на странице:
-              </label>
-
-              <select
-                id="catalog-limit"
-                name="limit"
-                defaultValue={pageSize}
-                className={styles.limitSelect}
-              >
-                {ALLOWED_PAGE_SIZES.map(
-                  (size) => (
-                    <option
-                      key={size}
-                      value={size}
-                    >
-                      {size}
-                    </option>
-                  ),
-                )}
-              </select>
-
-              <button
-                type="submit"
-                className={styles.limitButton}
-              >
-                Показать
-              </button>
-            </form>
+          <div className={styles.resultsSummary}>
+            Показаны товары {firstProductNumber}–{lastProductNumber} из{" "}
+            {totalProducts}
           </div>
 
           <div className={styles.grid}>
             {products.map((product) => (
               <ProductCard
                 key={product.slug}
-                product={product}
+                product={{
+                  slug: product.slug,
+                  name: product.name,
+                  brand: product.brand.name,
+                  category: product.category,
+                  price: Number(product.price),
+                  healing: product.healing,
+                  imageUrl: product.imageUrl ?? undefined,
+                }}
               />
             ))}
           </div>
 
-          {totalPages > 1 && (
+          {totalPages > 1 ? (
             <nav
               className={styles.pagination}
               aria-label="Навигация по страницам каталога"
             >
               {currentPage > 1 ? (
                 <Link
-                  className={
-                    styles.paginationLink
-                  }
-                  href={createCatalogHref({
-                    search: query,
-                    page: currentPage - 1,
-                    limit: pageSize,
-                  })}
+                  className={styles.paginationLink}
+                  href={createCatalogHref(state, currentPage - 1)}
                 >
-                  ← Назад
+                  Назад
                 </Link>
               ) : (
-                <span
-                  className={
-                    styles.paginationLinkDisabled
-                  }
-                >
-                  ← Назад
+                <span className={styles.paginationLinkDisabled} aria-disabled="true">
+                  Назад
                 </span>
               )}
 
-              {visiblePages.map(
-                (pageNumber, index) => {
-                  const previousPage =
-                    visiblePages[index - 1];
+              <span className={styles.paginationSummary}>
+                Страница {currentPage} из {totalPages}
+              </span>
 
-                  const showEllipsis =
-                    previousPage !== undefined &&
-                    pageNumber - previousPage > 1;
+              {visiblePages.map((pageNumber, index) => {
+                const previousPage = visiblePages[index - 1];
+                const showEllipsis =
+                  previousPage !== undefined && pageNumber - previousPage > 1;
 
-                  return (
-                    <span key={pageNumber}>
-                      {showEllipsis && (
-                        <span
-                          className={
-                            styles.paginationEllipsis
-                          }
-                        >
-                          …
-                        </span>
-                      )}
-
-                      <Link
-                        className={
-                          pageNumber === currentPage
-                            ? styles.paginationLinkActive
-                            : styles.paginationLink
-                        }
-                        href={createCatalogHref({
-                          search: query,
-                          page: pageNumber,
-                          limit: pageSize,
-                        })}
-                        aria-current={
-                          pageNumber === currentPage
-                            ? "page"
-                            : undefined
-                        }
-                      >
-                        {pageNumber}
-                      </Link>
-                    </span>
-                  );
-                },
-              )}
+                return (
+                  <span className={styles.pageItem} key={pageNumber}>
+                    {showEllipsis ? (
+                      <span className={styles.paginationEllipsis} aria-hidden="true">
+                        …
+                      </span>
+                    ) : null}
+                    <Link
+                      className={
+                        pageNumber === currentPage
+                          ? styles.paginationLinkActive
+                          : styles.paginationLink
+                      }
+                      href={createCatalogHref(state, pageNumber)}
+                      aria-current={pageNumber === currentPage ? "page" : undefined}
+                      aria-label={`Страница ${pageNumber} из ${totalPages}`}
+                    >
+                      {pageNumber}
+                    </Link>
+                  </span>
+                );
+              })}
 
               {currentPage < totalPages ? (
                 <Link
-                  className={
-                    styles.paginationLink
-                  }
-                  href={createCatalogHref({
-                    search: query,
-                    page: currentPage + 1,
-                    limit: pageSize,
-                  })}
+                  className={styles.paginationLink}
+                  href={createCatalogHref(state, currentPage + 1)}
                 >
-                  Вперёд →
+                  Вперёд
                 </Link>
               ) : (
-                <span
-                  className={
-                    styles.paginationLinkDisabled
-                  }
-                >
-                  Вперёд →
+                <span className={styles.paginationLinkDisabled} aria-disabled="true">
+                  Вперёд
                 </span>
               )}
             </nav>
-          )}
+          ) : null}
         </>
       ) : (
         <div className={styles.empty}>
-          <h2>Товары не найдены</h2>
-
-          <p>
-            Измени запрос или очисти поле поиска.
-          </p>
-
-          <Link href="/catalog">
-            Показать все товары
+          <h2>Товары по заданным параметрам не найдены</h2>
+          <p>Измените условия поиска или вернитесь к полному каталогу.</p>
+          <Link href="/catalog" className={styles.resetButton}>
+            Сбросить фильтры
           </Link>
         </div>
       )}
