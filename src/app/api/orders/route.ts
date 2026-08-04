@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
+import type { Prisma } from "@/generated/prisma/client";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { auth } from "@/lib/auth";
 import {
@@ -296,7 +297,63 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+const ADMIN_ORDER_STATUSES = [
+  "NEW",
+  "CONFIRMED",
+  "PROCESSING",
+  "SHIPPED",
+  "COMPLETED",
+  "CANCELLED",
+] as const;
+const ADMIN_ORDER_SORTS = [
+  "date-desc",
+  "date-asc",
+  "amount-desc",
+  "amount-asc",
+] as const;
+const ADMIN_ORDER_PAGE_SIZES = [20, 50, 100] as const;
+
+type AdminOrderStatus = (typeof ADMIN_ORDER_STATUSES)[number];
+type AdminOrderSort = (typeof ADMIN_ORDER_SORTS)[number];
+type AdminOrderPageSize = (typeof ADMIN_ORDER_PAGE_SIZES)[number];
+
+const adminOrderBy: Record<
+  AdminOrderSort,
+  Prisma.OrderOrderByWithRelationInput
+> = {
+  "date-desc": { createdAt: "desc" },
+  "date-asc": { createdAt: "asc" },
+  "amount-desc": { totalAmount: "desc" },
+  "amount-asc": { totalAmount: "asc" },
+};
+
+function parsePositiveInteger(value: string | null, fallback: number) {
+  const parsed = Number.parseInt(value ?? "", 10);
+
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function getAdminOrderStatus(value: string | null) {
+  return ADMIN_ORDER_STATUSES.includes(value as AdminOrderStatus)
+    ? (value as AdminOrderStatus)
+    : null;
+}
+
+function getAdminOrderSort(value: string | null): AdminOrderSort {
+  return ADMIN_ORDER_SORTS.includes(value as AdminOrderSort)
+    ? (value as AdminOrderSort)
+    : "date-desc";
+}
+
+function getAdminOrderPageSize(value: string | null): AdminOrderPageSize {
+  const parsed = parsePositiveInteger(value, 20);
+
+  return ADMIN_ORDER_PAGE_SIZES.includes(parsed as AdminOrderPageSize)
+    ? (parsed as AdminOrderPageSize)
+    : 20;
+}
+
+export async function GET(request: Request) {
   try {
     const unauthorizedResponse = await requireAdminSession();
 
@@ -304,45 +361,83 @@ export async function GET() {
       return unauthorizedResponse;
     }
 
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search")?.trim() ?? "";
+    const status = getAdminOrderStatus(searchParams.get("status"));
+    const sort = getAdminOrderSort(searchParams.get("sort"));
+    const pageSize = getAdminOrderPageSize(searchParams.get("pageSize"));
+    const requestedPage = parsePositiveInteger(searchParams.get("page"), 1);
+
+    const where: Prisma.OrderWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        {
+          customerName: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          phone: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          email: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      ];
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    const totalItems = await prisma.order.count({ where });
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const page = Math.min(requestedPage, totalPages);
+    const skip = (page - 1) * pageSize;
+
     const orders = await prisma.order.findMany({
+      where,
       select: {
         id: true,
         customerName: true,
         phone: true,
         email: true,
-        address: true,
         totalAmount: true,
         status: true,
         createdAt: true,
-        items: {
-          select: {
-            id: true,
-            productSlug: true,
-            productName: true,
-            quantity: true,
-            unitPrice: true,
-            lineTotal: true,
-          },
-        },
         user: {
           select: {
-            id: true,
             name: true,
             email: true,
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [adminOrderBy[sort], { id: "asc" }],
+      skip,
+      take: pageSize,
     });
 
     return NextResponse.json({
       success: true,
       orders,
+      pagination: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+        firstItem: totalItems === 0 ? 0 : skip + 1,
+        lastItem: Math.min(skip + orders.length, totalItems),
+      },
     });
-  } catch (error) {
-    console.error(error);
+  } catch {
+    console.error("Failed to load admin orders.");
 
     return NextResponse.json(
       {
