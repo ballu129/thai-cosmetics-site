@@ -31,17 +31,18 @@ export default function Header() {
           <Link href="/catalog">Каталог</Link>
           <Link href="/healing-cosmetics">Лечебная косметика</Link>
           <Link href="/brands">Бренды</Link>
+          <Link href="/wholesale">Оптовым клиентам</Link>
           <Link href="/delivery">Доставка</Link>
           <Link href="/about">О компании</Link>
         </nav>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-          }}
-        >
+        <div className={styles.actions}>
+          <Link
+            className={`${styles.account} ${styles.mobileWholesale}`}
+            href="/wholesale"
+          >
+            Оптовым клиентам
+          </Link>
           {isAuthenticated ? (
             <>
               <Link className={styles.account} href="/account">

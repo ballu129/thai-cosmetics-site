@@ -40,6 +40,7 @@ export default async function AdminDashboardPage() {
     productMetricsResult,
     brandMetricsResult,
     orderMetricsResult,
+    wholesaleMetricsResult,
     latestProductsResult,
     latestOrdersResult,
   ] = await Promise.allSettled([
@@ -57,6 +58,10 @@ export default async function AdminDashboardPage() {
       prisma.brand.count({ where: { isActive: false } }),
     ]),
     prisma.order.groupBy({
+      by: ["status"],
+      _count: { _all: true },
+    }),
+    prisma.wholesaleRequest.groupBy({
       by: ["status"],
       _count: { _all: true },
     }),
@@ -91,6 +96,7 @@ export default async function AdminDashboardPage() {
   const productMetrics = getSettledValue(productMetricsResult);
   const brandMetrics = getSettledValue(brandMetricsResult);
   const orderGroups = getSettledValue(orderMetricsResult);
+  const wholesaleGroups = getSettledValue(wholesaleMetricsResult);
   const latestProducts = getSettledValue(latestProductsResult);
   const latestOrders = getSettledValue(latestOrdersResult);
 
@@ -110,10 +116,24 @@ export default async function AdminDashboardPage() {
     : null;
   const newOrders = orderCounts?.get("NEW") ?? 0;
   const processingOrders = orderCounts?.get("PROCESSING") ?? 0;
+  const wholesaleCounts = wholesaleGroups
+    ? new Map(
+        wholesaleGroups.map((group) => [group.status, group._count._all]),
+      )
+    : null;
+  const totalWholesaleRequests = wholesaleGroups
+    ? wholesaleGroups.reduce(
+        (total, group) => total + group._count._all,
+        0,
+      )
+    : null;
+  const newWholesaleRequests = wholesaleCounts?.get("NEW") ?? 0;
+  const processingWholesaleRequests = wholesaleCounts?.get("IN_PROGRESS") ?? 0;
   const hasUnavailableData = [
     productMetricsResult,
     brandMetricsResult,
     orderMetricsResult,
+    wholesaleMetricsResult,
     latestProductsResult,
     latestOrdersResult,
   ].some((result) => result.status === "rejected");
@@ -140,6 +160,13 @@ export default async function AdminDashboardPage() {
           href: "/admin/orders",
         }
       : null,
+    wholesaleGroups && newWholesaleRequests > 0
+      ? {
+          label: "Новые оптовые заявки ожидают обработки",
+          count: newWholesaleRequests,
+          href: "/admin/wholesale-orders?status=NEW",
+        }
+      : null,
   ].filter((warning): warning is NonNullable<typeof warning> => Boolean(warning));
 
   return (
@@ -149,7 +176,7 @@ export default async function AdminDashboardPage() {
           <p className={styles.eyebrow}>SIAM CARE</p>
           <h1 className={styles.title}>Панель управления</h1>
           <p className={styles.subtitle}>
-            Управление каталогом, брендами и заказами SIAM CARE.
+            Управление каталогом, брендами, заказами и оптовыми заявками SIAM CARE.
           </p>
         </div>
       </header>
@@ -180,6 +207,33 @@ export default async function AdminDashboardPage() {
               <Link href="/admin/products">Управление товарами</Link>
               <Link href="/admin/products/new">Добавить товар</Link>
               <Link href="/admin/products/import">Массовый импорт</Link>
+            </nav>
+          </article>
+
+          <article className={styles.sectionCard}>
+            <div>
+              <p className={styles.cardLabel}>Оптовые заявки</p>
+              <p className={styles.primaryMetric}>
+                {totalWholesaleRequests ?? "—"}
+              </p>
+              <div className={styles.orderMetrics}>
+                <span>
+                  Новых: {wholesaleGroups ? newWholesaleRequests : "—"}
+                </span>
+                <span>
+                  В обработке:{" "}
+                  {wholesaleGroups ? processingWholesaleRequests : "—"}
+                </span>
+              </div>
+            </div>
+
+            <nav className={styles.cardLinks} aria-label="Оптовые заявки">
+              <Link href="/admin/wholesale-orders">
+                Управление оптовыми заявками
+              </Link>
+              <Link href="/admin/wholesale-orders?status=NEW">
+                Новые оптовые заявки
+              </Link>
             </nav>
           </article>
 
@@ -244,6 +298,9 @@ export default async function AdminDashboardPage() {
           </Link>
           <Link className={styles.secondaryAction} href="/admin/orders">
             Открыть заказы
+          </Link>
+          <Link className={styles.secondaryAction} href="/admin/wholesale-orders">
+            Открыть оптовые заявки
           </Link>
         </div>
       </section>
