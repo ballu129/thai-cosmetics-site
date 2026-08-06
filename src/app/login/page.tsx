@@ -3,11 +3,14 @@
 import { FormEvent, Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getSafeLoginCallbackUrl } from "@/lib/safe-callback-url";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/account";
+  const callbackUrl = getSafeLoginCallbackUrl(
+    searchParams.get("callbackUrl"),
+  );
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
