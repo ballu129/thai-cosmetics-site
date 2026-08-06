@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-
-const ADMIN_SESSION_COOKIE = "admin_session";
-const ADMIN_SESSION_VALUE = "authorized";
+import {
+  ADMIN_SESSION_COOKIE,
+  AdminSessionConfigurationError,
+  createAdminSession,
+  getAdminSessionCookieOptions,
+} from "@/lib/admin-session";
 
 function getAdminCredentials() {
   const login = process.env.ADMIN_LOGIN?.trim();
@@ -36,13 +39,27 @@ export async function POST(request: Request) {
     );
   }
 
-  const response = NextResponse.json({ success: true });
+  try {
+    const token = await createAdminSession();
+    const response = NextResponse.json({ success: true });
 
-  response.cookies.set(ADMIN_SESSION_COOKIE, ADMIN_SESSION_VALUE, {
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-  });
+    response.cookies.set(
+      ADMIN_SESSION_COOKIE,
+      token,
+      getAdminSessionCookieOptions(),
+    );
 
-  return response;
+    return response;
+  } catch (error) {
+    if (error instanceof AdminSessionConfigurationError) {
+      console.error("Admin session configuration is invalid.");
+
+      return NextResponse.json(
+        { error: "Вход администратора временно недоступен." },
+        { status: 503 },
+      );
+    }
+
+    throw error;
+  }
 }

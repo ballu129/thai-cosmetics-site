@@ -2,15 +2,17 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-
-const ADMIN_SESSION_COOKIE = "admin_session";
-const ADMIN_SESSION_VALUE = "authorized";
+import {
+  ADMIN_SESSION_COOKIE,
+  verifyAdminSession,
+} from "@/lib/admin-session";
 
 export async function requireAdminSession() {
   const cookieStore = await cookies();
-  const session = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  const session = await verifyAdminSession(token);
 
-  if (session === ADMIN_SESSION_VALUE) {
+  if (session?.role === "ADMIN") {
     return null;
   }
 
